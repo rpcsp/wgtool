@@ -11,8 +11,18 @@ import re
 from ipaddress import ip_interface, IPv4Interface, IPv6Interface
 from typing import List, Tuple, Union
 
-POST_UP = "iptables -I FORWARD 1 -i %i -o eth0 -j ACCEPT; iptables -I FORWARD 1 -i eth0 -o %i -j ACCEPT; iptables -t nat -I POSTROUTING 1 -s {0} -o eth0 -j MASQUERADE"
-POST_DN = "iptables -D FORWARD   -i %i -o eth0 -j ACCEPT; iptables -D FORWARD   -i eth0 -o %i -j ACCEPT; iptables -t nat -D POSTROUTING   -s {0} -o eth0 -j MASQUERADE"
+POST_UP = ('iptables -I FORWARD 1 -i %i -o {0} -j ACCEPT; '
+           'iptables -I FORWARD 1 -i {0} -o %i -j ACCEPT; '
+           'iptables -t nat -I POSTROUTING 1 -s {1} -o {0} -j MASQUERADE; '
+           'ip6tables -I FORWARD 1 -i %i -o {0} -j ACCEPT; '
+           'ip6tables -I FORWARD 1 -i {0} -o %i -j ACCEPT; '
+           'ip6tables -t nat -I POSTROUTING 1 -s {2} -o {0} -j MASQUERADE')
+POST_DN = ('iptables -D FORWARD   -i %i -o {0} -j ACCEPT; '
+           'iptables -D FORWARD   -i {0} -o %i -j ACCEPT; '
+           'iptables -t nat -D POSTROUTING   -s {1} -o {0} -j MASQUERADE; '
+           'ip6tables -D FORWARD   -i %i -o {0} -j ACCEPT; '
+           'ip6tables -D FORWARD   -i {0} -o %i -j ACCEPT; '
+           'ip6tables -t nat -D POSTROUTING   -s {2} -o {0} -j MASQUERADE')
 MIN_PYTHON = (3, 7)
 if sys.version_info < MIN_PYTHON:
     sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
@@ -24,8 +34,9 @@ pp = pprint.PrettyPrinter(indent=4, width=100)
 
 
 class WGTool:
-    def __init__(self, file: str) -> None:
+    def __init__(self, file: str, ifname: str = 'eth0') -> None:
         self.file = file
+        self.ifname = ifname
         self._server_ip = None
         self._server_ipv6 = None
         self.domain_name = ''
@@ -90,11 +101,21 @@ class WGTool:
 
     @property
     def post_up(self) -> str:
-        return self.interface_config.get('PostUp', POST_UP.format(self.server_ip.network))
+        if os.name == 'posix':
+            return self.interface_config.get(
+                'PostUp',
+                POST_UP.format(self.ifname, self.server_ip.network, self.server_ipv6.network)
+            )
+        return ''
 
     @property
     def post_down(self) -> str:
-        return self.interface_config.get('PostDown', POST_DN.format(self.server_ip.network))
+        if os.name == 'posix':
+            return self.interface_config.get(
+                'PostDown',
+                POST_DN.format(self.ifname, self.server_ip.network, self.server_ipv6.network)
+            )
+        return ''
 
     @property
     def private_key(self) -> str:
@@ -192,10 +213,9 @@ class WGTool:
         interface.update({k: v for k, v in self.interface_config.items() if k not in interface})
 
         peers = []
-        for index, peer_config in enumerate(self.peers_config):
+        for peer_config in self.peers_config:
             peer = {
                 '# Name': peer_config['# Name'],
-                #'AllowedIPs': self._args_to_str(ip.get(index), ipv6.get(index)),
             }
             peer.update({k: v for k, v in peer_config.items() if k not in peer})  # and k[:1].upper() == k[:1]})
             peers.append(peer)
@@ -257,7 +277,7 @@ class WGTool:
         Extract first IPv6 from text
         """
         try:
-            match = re.search(r'([0-9a-fA-F:]{6,})', text)
+            match = re.search(r'([0-9a-fA-F:]{6,}/\d{1,3})', text)
             return IPv6Interface(match.group(1))
         except Exception:
             return None
@@ -342,7 +362,6 @@ class WGTool:
     def peer_add(self, name: str, endpoint: str, dns: list = None) -> str:
         # Validation
         endpoint = endpoint or self.endpoint
-        dns = dns or ['8.8.8.8', '1.1.1.1']
         if not endpoint:
             raise WGToolException('Endpoint is required, but not configured. Provide this parameter.')
         if ':' not in endpoint:
@@ -373,6 +392,14 @@ class WGTool:
         self.save_server_config()
 
         # Peer Config
+        allowed_ips = '0.0.0.0/0'
+        if ipv6:
+            allowed_ips += ', ::/0'
+        if not dns:
+            dns = ['8.8.8.8', '1.1.1.1']
+            if ipv6:
+                dns += ['2001:4860:4860::8888', '2606:4700:4700::1111']
+
         interface_config = {
             'Address':', '.join([str(v) for v in [ip, ipv6] if v]),
             'PrivateKey': peer_private_key,
@@ -381,7 +408,7 @@ class WGTool:
         peer_config = [{
             'PublicKey': self.public_key,
             'PresharedKey': peer_preshared_key,
-            'AllowedIPs': '0.0.0.0/0',
+            'AllowedIPs': allowed_ips,
             'Endpoint': endpoint
         }]
         logger.debug(f'New peer "{name}"')
@@ -461,7 +488,11 @@ def parse_args() -> argparse.Namespace:
     parser_del = subparser.add_parser('delete', help='Delete peer')
     parser_del.add_argument('name', help='Peer name or number to be added')
     # others
-    parser.add_argument('-f', '--file', required=(os.name == 'nt'), help='Path to wireguard config file')
+    parser.add_argument('-f', '--file', required=(os.name == 'nt'),
+                        help=('For Windows users mainly, path to wireguard config file. '
+                              'Default is /etc/wireguard/wg0.conf'))
+    parser.add_argument('-i', '--ifname', default='eth0',
+                        help='For linux users, define LAN interface used with iptables rules. Default is "eth0"')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
     if not args.file and os.name != 'nt':
@@ -477,7 +508,7 @@ def main() -> None:
     params = {k: v for k, v in vars(config).items() if k != 'action'}
 
     try:
-        wg = WGTool(config.file)
+        wg = WGTool(config.file, ifname=config.ifname)
 
         if config.action in ['add', 'delete', 'qrcode']:
             while not config.name:
@@ -514,7 +545,7 @@ def main() -> None:
                 with open(file) as f:
                     print(f'Peer "{config.name}" config file: {file}\n\n{f.read()}\n')
                 if config.qrcode:
-                    print(subprocess.check_output(f'qrencode -t ansiutf8 -r {file}', shell=True, encoding='utf-8'))
+                    print(subprocess.check_output(f'qrencode -t ansiutf8 -r "{file}"', shell=True, encoding='utf-8'))
                 wg.restart_systemctl_service()
             except (subprocess.SubprocessError, FileNotFoundError):
                 print('Note: To display peer config as a QR code, please install "qrencode"')
