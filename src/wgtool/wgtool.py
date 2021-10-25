@@ -432,7 +432,7 @@ class WGTool:
             return subprocess.check_output(command, shell=True, encoding='utf-8').strip()
         except Exception as e:
             if '127' in str(e) and 'wg ' in str(e):
-                sys.exit('Wireguard command "wg" not found. Is wireguard installed?')
+                sys.exit('WireGuard command "wg" not found. Is wireguard installed?')
             sys.exit(f'Error executing command "{command}": {e}')
 
     def generate_preshared_key(self) -> str:
@@ -469,7 +469,7 @@ class WGToolException(Exception):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Wireguard Configuration Tool')
+    parser = argparse.ArgumentParser(description='WireGuard Configuration Tool')
     subparser = parser.add_subparsers(dest='action', required=True)
     # server
     parser_server = subparser.add_parser('server', help='Setup new server')

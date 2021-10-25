@@ -1,6 +1,6 @@
 # WireGuard Configuration Tool
 
-WGTool is python script perform basic configuration tasks in a WireGuard Server.
+WGTool is python script to perform basic configuration tasks in a WireGuard Server.
 
 It is meant to be used in new deployments and supports the following action:
 
@@ -11,40 +11,50 @@ It is meant to be used in new deployments and supports the following action:
 
 When a peer is added, the tool can display a QR code with the configuration if "qrencode" is available.
 
+## Requirements
+
+- Required:
+  - python 3.7 or newer
+  - Updated python pip
+
+- Optional:
+  - qrencode 4 or newer
+
+## Installation
+
+    python -m pip install wgtool
+
 ## Commands
 
 Configuring new server with default settings:
 
-    python ./wgtool.py server myserver012.duckdns.org
+    wgtool server myserver012.duckdns.org
 
 Configuring new server with some custom settings:
 
-    python ./wgtool.py server myserver012.duckdns.org --ip 192.168.254.1/24 --port 2345
+    wgtool server myserver012.duckdns.org --ip 192.168.254.1/24 --port 2345
 
 Adding peer "PeerA":
 
-    python ./wgtool.py add "PeerA"
+    wgtool add "PeerA"
 
 Adding peer "PeerA" with custom DNS and showing QR code:
 
-    python ./wgtool.py add "PeerA" --dns 1.1.1.1 1.0.0.1 --qrcode
+    wgtool add "PeerA" --dns 1.1.1.1 1.0.0.1 --qrcode
 
 Listing peers:
 
-    python ./wgtool.py list
+    wgtool list
 
 Removing peer "PeerA":
 
-    python ./wgtool.py delete "PeerA"
+    wgtool delete "PeerA"
 
-If WireGuard Server is on a Windows machine, you must provide the path to the configuration file:
+If WireGuard Server is on a Windows machine, you must provide the path to the configuration file. For linux users, the default path is /etc/wireguard/wg0.conf:
 
-    python wgtool.py --file C:\Wireguard\wg0.conf <arguments>
+    wgtool --file C:\Wireguard\wg0.conf <arguments>
 
 
-## Requirements
+## License
 
-- Required:
-  - python 3.7.x or superior (no additional modules required)
-- Optional:
-  - qrencode 4.x or superior
+MIT
