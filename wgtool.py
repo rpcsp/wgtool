@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-
+'''
+WireGuard Configuration Tool (wgtool)
+by rpcsp (pcunha at hotmail.com) - 10/2021
+https://github.com/rpcsp/wgtool
+'''
 import sys
 import os
 import argparse
@@ -9,7 +13,7 @@ import subprocess
 import tempfile
 import re
 from ipaddress import ip_interface, IPv4Interface, IPv6Interface
-from typing import List, Tuple, Union
+from typing import Union
 
 POST_UP = ('iptables -I FORWARD 1 -i %i -o {0} -j ACCEPT; '
            'iptables -I FORWARD 1 -i {0} -o %i -j ACCEPT; '
@@ -138,10 +142,10 @@ class WGTool:
         return self._public_key[self.private_key]
 
     def server_config_set(self, ip: str = '', ipv6: str = '', domain_name: str = '', **params) -> dict:
-        """
+        '''
         Set one or more server interface parameters.
         Some valid params: ip, ipv6,or any wireguard valid key/value such as ListenPort, MTU
-        """
+        '''
         self.server_ip = self._get_ip(params.get('Address')) or ip
         self.server_ipv6 = self._get_ipv6(params.get('Address')) or ipv6
         self.mtu = params.get('MTU')
@@ -192,9 +196,9 @@ class WGTool:
         self.server_config_set(**interface_config)
 
     def assign_name_to_peers(self) -> None:
-        """
+        '''
         Assign a peer name to all peers without one
-        """
+        '''
         for index, config in enumerate(self.peers_config):
             if '# Name' not in config or config['# Name'] in list(self.peers.values())[:index]:
                 config['# Name'] = self.get_new_peer_name()
@@ -233,12 +237,11 @@ class WGTool:
     def peers_delete_all(self):
         self.peers_config = []
 
-
     @staticmethod
     def _get_first_host_ip(ip: IPInterface) -> IPInterface:
-        """
+        '''
         Get first host IP
-        """
+        '''
         if str(ip.network) == str(ip):
             mask = str(ip).split('/')[1]
             ip = ip_interface(f'{ip.ip + 1}/{mask}')
@@ -262,9 +265,9 @@ class WGTool:
 
     @staticmethod
     def _get_ip(text) -> Union[IPv4Interface, None]:
-        """
+        '''
         Extract first IPv4 from text
-        """
+        '''
         try:
             match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2})', text)
             return IPv4Interface(match.group(1))
@@ -273,9 +276,9 @@ class WGTool:
 
     @staticmethod
     def _get_ipv6(text) -> Union[IPv6Interface, None]:
-        """
+        '''
         Extract first IPv6 from text
-        """
+        '''
         try:
             match = re.search(r'([0-9a-fA-F:]{6,}/\d{1,3})', text)
             return IPv6Interface(match.group(1))
@@ -284,11 +287,11 @@ class WGTool:
 
     @staticmethod
     def _save_to_file(interface: dict, peers: list, file: str):
-        """
+        '''
         Save config to file
         Format: (<group-name>: {key1: value1, key2: value2}, ...)
         Keys without value are ignored
-        """
+        '''
         def to_text(group_name: str, key_values: dict) -> str:
             width = max([len(str(v)) for v in key_values if v])
             content = f'[{group_name}]\n'
@@ -299,16 +302,15 @@ class WGTool:
 
         content = to_text('Interface', interface)
         for peer in peers:
-            content +=to_text('Peer', peer)
+            content += to_text('Peer', peer)
 
         with open(file, 'w') as f:
             f.write(content.strip() + '\n')
         os.chmod(file, mode=0o700)
         return content
 
-
     def get_next_ip(self) -> Union[IPv4Interface, None]:
-        """ Return the next available IP address """
+        ''' Return the next available IP address '''
         server = self.server_ip
         if not server:
             return None
@@ -321,7 +323,7 @@ class WGTool:
         return None
 
     def get_next_ipv6(self) -> Union[IPv6Interface, None]:
-        """ Return the next available IPv6 address """
+        ''' Return the next available IPv6 address '''
         server = self.server_ipv6
         if not server:
             return None
@@ -401,7 +403,7 @@ class WGTool:
                 dns += ['2001:4860:4860::8888', '2606:4700:4700::1111']
 
         interface_config = {
-            'Address':', '.join([str(v) for v in [ip, ipv6] if v]),
+            'Address': ', '.join([str(v) for v in [ip, ipv6] if v]),
             'PrivateKey': peer_private_key,
             'DNS': ', '.join([str(v) for v in dns if v]),
         }
@@ -477,7 +479,7 @@ def parse_args() -> argparse.Namespace:
     parser_server.add_argument('-6', '--ipv6', metavar='<ip/mask>', help='IPv6 prefix with mask')
     parser_server.add_argument('-p', '--port', dest='ListenPort', type=int, default=51820, help='UDP port')
     # list
-    parser_list = subparser.add_parser('list', help='List peers')
+    parser_list = subparser.add_parser('list', help='List peers')  # noqa F841
     # add
     parser_add = subparser.add_parser('add', help='Add peer')
     parser_add.add_argument('name', help='Name to identify this new peer')
@@ -488,16 +490,17 @@ def parse_args() -> argparse.Namespace:
     parser_del = subparser.add_parser('delete', help='Delete peer')
     parser_del.add_argument('name', help='Peer name or number to be added')
     # others
-    parser.add_argument('-f', '--file', required=(os.name == 'nt'),
+    parser.add_argument('-f', '--file', metavar='<conf-file>', required=(os.name == 'nt'),
                         help=('For Windows users mainly, path to wireguard config file. '
                               'Default is /etc/wireguard/wg0.conf'))
-    parser.add_argument('-i', '--ifname', default='eth0',
+    parser.add_argument('-i', '--ifname', metavar='<interface>', default='eth0',
                         help='For linux users, define LAN interface used with iptables rules. Default is "eth0"')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
     if not args.file and os.name != 'nt':
         args.file = '/etc/wireguard/wg0.conf'
     return args
+
 
 def main() -> None:
     config = parse_args()
@@ -560,6 +563,7 @@ def main() -> None:
 
     except WGToolException as e:
         sys.exit(f'error: {e}')
+
 
 if __name__ == '__main__':
     main()
