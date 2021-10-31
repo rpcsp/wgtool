@@ -464,7 +464,6 @@ class WGTool:
 
         file = '/etc/sysctl.conf'
         try:
-            import pdb; pdb.set_trace()
             with open(file) as f:
                 content = f.read()
                 new_content = content
