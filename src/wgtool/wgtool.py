@@ -15,18 +15,16 @@ import re
 from ipaddress import ip_interface, IPv4Interface, IPv6Interface
 from typing import Union
 
-POST_UP = ('iptables -I FORWARD 1 -i %i -o {0} -j ACCEPT; '
-           'iptables -I FORWARD 1 -i {0} -o %i -j ACCEPT; '
-           'iptables -t nat -I POSTROUTING 1 -s {1} -o {0} -j MASQUERADE; '
-           'ip6tables -I FORWARD 1 -i %i -o {0} -j ACCEPT; '
-           'ip6tables -I FORWARD 1 -i {0} -o %i -j ACCEPT; '
-           'ip6tables -t nat -I POSTROUTING 1 -s {2} -o {0} -j MASQUERADE')
-POST_DN = ('iptables -D FORWARD   -i %i -o {0} -j ACCEPT; '
-           'iptables -D FORWARD   -i {0} -o %i -j ACCEPT; '
-           'iptables -t nat -D POSTROUTING   -s {1} -o {0} -j MASQUERADE; '
-           'ip6tables -D FORWARD   -i %i -o {0} -j ACCEPT; '
-           'ip6tables -D FORWARD   -i {0} -o %i -j ACCEPT; '
-           'ip6tables -t nat -D POSTROUTING   -s {2} -o {0} -j MASQUERADE')
+POST_UP = (  # iptables, ifname, network
+    '{0} -I FORWARD 1 -i %i -o {1} -j ACCEPT; '
+    '{0} -I FORWARD 1 -i {1} -o %i -j ACCEPT; '
+    '{0} -t nat -I POSTROUTING 1 -s {2} -o {1} -j MASQUERADE'
+)
+POST_DN = (
+    '{0} -D FORWARD   -i %i -o {1} -j ACCEPT; '
+    '{0} -D FORWARD   -i {1} -o %i -j ACCEPT; '
+    '{0} -t nat -D POSTROUTING   -s {2} -o {1} -j MASQUERADE; '
+)
 MIN_PYTHON = (3, 7)
 if sys.version_info < MIN_PYTHON:
     sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
@@ -106,19 +104,25 @@ class WGTool:
     @property
     def post_up(self) -> str:
         if os.name == 'posix':
-            return self.interface_config.get(
-                'PostUp',
-                POST_UP.format(self.ifname, self.server_ip.network, self.server_ipv6.network)
-            )
+            command = []
+            if self.server_ip:
+                command.append(POST_UP.format('iptables', self.ifname, self.server_ip.network))
+            if self.server_ipv6:
+                command.append(POST_UP.format('ip6tables', self.ifname,self.server_ipv6.network))
+            if command:
+                return self.interface_config.get('PostUp', '; '.join(command))
         return ''
 
     @property
     def post_down(self) -> str:
         if os.name == 'posix':
-            return self.interface_config.get(
-                'PostDown',
-                POST_DN.format(self.ifname, self.server_ip.network, self.server_ipv6.network)
-            )
+            command = []
+            if self.server_ip:
+                command.append(POST_DN.format('iptables', self.ifname, self.server_ip.network))
+            if self.server_ipv6:
+                command.append(POST_DN.format('ip6tables', self.ifname,self.server_ipv6.network))
+            if command:
+                return self.interface_config.get('PostDown', '; '.join(command))
         return ''
 
     @property
