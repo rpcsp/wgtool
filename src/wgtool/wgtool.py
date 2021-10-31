@@ -12,6 +12,7 @@ import pprint
 import subprocess
 import tempfile
 import re
+import shutil
 from ipaddress import ip_interface, IPv4Interface, IPv6Interface
 from typing import Union
 
@@ -457,6 +458,53 @@ class WGTool:
             except subprocess.CalledProcessError:
                 raise WGToolException(f'Invalid private key: {private}')
 
+    def enable_forwarding(self) -> None:
+        if os.name != 'posix':
+            return False
+
+        file = '/etc/sysctl.conf'
+        try:
+            import pdb; pdb.set_trace()
+            with open(file) as f:
+                content = f.read()
+                new_content = content
+
+            # IPv4
+            if self.server_ip:
+                if re.search(r'net.ipv4.ip_forward\s*=\s*1$', new_content, re.MULTILINE):
+                    new_content = re.sub(
+                        r'#\s*net.ipv4.ip_forward\s*=\s*1',
+                        'net.ipv4.ip_forward=1',
+                        new_content,
+                        re.MULTILINE
+                    )
+                else:
+                    new_content = new_content.strip('\n') + '\nnet.ipv4.ip_forward=1\n'
+
+            # IPv6
+            if self.server_ipv6:
+                if re.search(r'net.ipv6.conf.all.forwarding\s*=\s*1', new_content, re.MULTILINE):
+                    new_content = re.sub(
+                        r'#\s*net.ipv6.conf.all.forwarding\s*=\s*1',
+                        'net.ipv6.conf.all.forwarding=1',
+                        new_content,
+                        re.MULTILINE
+                    )
+                else:
+                    new_content = new_content.strip('\n') + '\nnet.ipv6.conf.all.forwarding=1\n'
+            if content == new_content:
+                return
+
+            print(f'Updating "{file}"')
+            file_backup = f'{file}.wgtool'
+            if not os.path.exists(file_backup):
+                shutil.copy(file, file_backup)
+            with open(file, 'w') as f:
+                f.write(new_content)
+
+        except FileNotFoundError:
+            print(f'Cannot open "{file}"')
+
     def restart_systemctl_service(self) -> bool:
         print('Restarting service...')
         if os.name != 'posix':
@@ -466,6 +514,7 @@ class WGTool:
                    'sudo systemctl restart wg-quick@wg0')
         result = self._run_command(command)
         print(result)
+        return result
 
 
 class WGToolException(Exception):
@@ -531,6 +580,7 @@ def main() -> None:
             wg.server_config_set(**params)
             config = wg.save_server_config()
             print(f'Content of the new configuration file "{wg.file}":\n\n{config}')
+            wg.enable_forwarding()
             wg.restart_systemctl_service()
 
         # list
