@@ -500,6 +500,9 @@ class WGTool:
                 shutil.copy(file, file_backup)
             with open(file, 'w') as f:
                 f.write(new_content)
+            print('Applying changes to sysctl:')
+            result = self._run_command('sudo sysctl -p')
+            print(result)
 
         except FileNotFoundError:
             print(f'Cannot open "{file}"')
