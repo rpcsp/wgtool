@@ -16,6 +16,10 @@ import shutil
 from ipaddress import ip_interface, IPv4Interface, IPv6Interface
 from typing import Union
 
+MIN_PYTHON = (3, 7)
+if sys.version_info < MIN_PYTHON:
+    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
+
 POST_UP = (  # iptables, ifname, network
     '{0} -I FORWARD 1 -i %i -o {1} -j ACCEPT; '
     '{0} -I FORWARD 1 -i {1} -o %i -j ACCEPT; '
@@ -26,9 +30,8 @@ POST_DN = (
     '{0} -D FORWARD   -i {1} -o %i -j ACCEPT; '
     '{0} -t nat -D POSTROUTING   -s {2} -o {1} -j MASQUERADE; '
 )
-MIN_PYTHON = (3, 7)
-if sys.version_info < MIN_PYTHON:
-    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
+DEFAULT_DNS_LIST_IPV4 = ['8.8.8.8', '1.1.1.1']
+DEFAULT_DNS_LIST_IPV6 = ['2001:4860:4860::8888', '2606:4700:4700::1111']
 
 IPInterface = Union[IPv4Interface, IPv6Interface]
 
@@ -53,7 +56,9 @@ class WGTool:
 
     @server_ip.setter
     def server_ip(self, value):
-        self._server_ip = self._get_valid_host_ip(IPv4Interface, current_value=self._server_ip, new_value=value)
+        self._server_ip = self._get_valid_host_ip(
+            IPv4Interface, current_value=self._server_ip, new_value=value
+        )
 
     @property
     def server_ipv6(self) -> IPv6Interface:
@@ -61,7 +66,9 @@ class WGTool:
 
     @server_ipv6.setter
     def server_ipv6(self, value):
-        self._server_ipv6 = self._get_valid_host_ip(IPv6Interface, current_value=self._server_ipv6, new_value=value)
+        self._server_ipv6 = self._get_valid_host_ip(
+            IPv6Interface, current_value=self._server_ipv6, new_value=value
+        )
 
     @property
     def address(self) -> str:
@@ -109,7 +116,7 @@ class WGTool:
             if self.server_ip:
                 command.append(POST_UP.format('iptables', self.ifname, self.server_ip.network))
             if self.server_ipv6:
-                command.append(POST_UP.format('ip6tables', self.ifname,self.server_ipv6.network))
+                command.append(POST_UP.format('ip6tables', self.ifname, self.server_ipv6.network))
             if command:
                 return self.interface_config.get('PostUp', '; '.join(command))
         return ''
@@ -121,7 +128,7 @@ class WGTool:
             if self.server_ip:
                 command.append(POST_DN.format('iptables', self.ifname, self.server_ip.network))
             if self.server_ipv6:
-                command.append(POST_DN.format('ip6tables', self.ifname,self.server_ipv6.network))
+                command.append(POST_DN.format('ip6tables', self.ifname, self.server_ipv6.network))
             if command:
                 return self.interface_config.get('PostDown', '; '.join(command))
         return ''
@@ -131,7 +138,10 @@ class WGTool:
         if 'PrivateKey' not in self.interface_config:
             self.interface_config['PrivateKey'] = self.generate_private_key()
             if self.peers_config:
-                print(f'Server keys have changed. Update clinets with the key below:\nPublicKey = {self.public_key}')
+                print(
+                    'Server keys have changed. Update clinets with the key below:\n'
+                    f'PublicKey = {self.public_key}'
+                )
         return self.interface_config['PrivateKey']
 
     @private_key.setter
@@ -146,7 +156,13 @@ class WGTool:
             self._public_key = {self.private_key: self.generate_public_key(self.private_key)}
         return self._public_key[self.private_key]
 
-    def server_config_set(self, ip: str = '', ipv6: str = '', domain_name: str = '', **params) -> dict:
+    def server_config_set(
+        self,
+        ip: str = '',
+        ipv6: str = '',
+        domain_name: str = '',
+        **params,
+    ) -> dict:
         '''
         Set one or more server interface parameters.
         Some valid params: ip, ipv6,or any wireguard valid key/value such as ListenPort, MTU
@@ -158,11 +174,28 @@ class WGTool:
         self.private_key = params.get('PrivateKey')
         self.domain_name = params.get('# Endpoint', '').split(':')[0] or domain_name
 
-        excluded_keys = ['Address', 'MTU', 'ListenPort', 'PrivateKey', 'PublicKey', '# PublicKey', 'PostUp', 'PostDown']
-        self.interface_config.update({
-            k: v for k, v in params.items()
-            if (v and k[:1] == k.upper()[:1] and k[:1] != k[:1].lower() and k not in excluded_keys)
-        })
+        excluded_keys = [
+            'Address',
+            'MTU',
+            'ListenPort',
+            'PrivateKey',
+            'PublicKey',
+            '# PublicKey',
+            'PostUp',
+            'PostDown',
+        ]
+        self.interface_config.update(
+            {
+                k: v
+                for k, v in params.items()
+                if (
+                    v
+                    and k[:1] == k.upper()[:1]
+                    and k[:1] != k[:1].lower()
+                    and k not in excluded_keys
+                )
+            }
+        )
 
     def load_server_config(self) -> None:
         interface_config = {}
@@ -226,14 +259,16 @@ class WGTool:
             peer = {
                 '# Name': peer_config['# Name'],
             }
-            peer.update({k: v for k, v in peer_config.items() if k not in peer})  # and k[:1].upper() == k[:1]})
+            peer.update(
+                {k: v for k, v in peer_config.items() if k not in peer}
+            )
             peers.append(peer)
 
         # Save to file
         directory = os.path.dirname(self.file)
         try:
             if directory and not os.path.isdir(directory):
-                os.makedirs(directory, mode=0o700,  exist_ok=True)
+                os.makedirs(directory, mode=0o700, exist_ok=True)
             content = self._save_to_file(interface, peers, self.file)
         except PermissionError:
             sys.exit('error: Permission denied creating files. Are you running with sudo?')
@@ -297,6 +332,7 @@ class WGTool:
         Format: (<group-name>: {key1: value1, key2: value2}, ...)
         Keys without value are ignored
         '''
+
         def to_text(group_name: str, key_values: dict) -> str:
             width = max([len(str(v)) for v in key_values if v])
             content = f'[{group_name}]\n'
@@ -315,11 +351,14 @@ class WGTool:
         return content
 
     def get_next_ip(self) -> Union[IPv4Interface, None]:
-        ''' Return the next available IP address '''
+        '''Return the next available IP address'''
         server = self.server_ip
         if not server:
             return None
-        ip_networks_in_use = [self._get_ip(p.get('AllowedIPs')) for p in self.peers_config] + [server]
+
+        ip_networks_in_use = [self._get_ip(p.get('AllowedIPs')) for p in self.peers_config]
+        ip_networks_in_use.append(server)
+
         ip_list_in_use = [str(address.ip) for address in ip_networks_in_use if address]
         for host in server.network.hosts():
             if str(host) not in ip_list_in_use:
@@ -328,11 +367,14 @@ class WGTool:
         return None
 
     def get_next_ipv6(self) -> Union[IPv6Interface, None]:
-        ''' Return the next available IPv6 address '''
+        '''Return the next available IPv6 address'''
         server = self.server_ipv6
         if not server:
             return None
-        ip_networks_in_use = [self._get_ipv6(p.get('AllowedIPs')) for p in self.peers_config] + [server]
+
+        ip_networks_in_use = [self._get_ipv6(p.get('AllowedIPs')) for p in self.peers_config]
+        ip_networks_in_use.append(server)
+
         ip_list_in_use = [str(address.ip) for address in ip_networks_in_use if address]
         for host in server.network.hosts():
             if str(host) not in ip_list_in_use:
@@ -370,7 +412,9 @@ class WGTool:
         # Validation
         endpoint = endpoint or self.endpoint
         if not endpoint:
-            raise WGToolException('Endpoint is required, but not configured. Provide this parameter.')
+            raise WGToolException(
+                'Endpoint is required, but not configured. Provide this parameter.'
+            )
         if ':' not in endpoint:
             raise WGToolException('Endpoint must include port: <ip/name>:<port>')
         if name.isdigit():
@@ -390,12 +434,14 @@ class WGTool:
         ipv6 = self.get_next_ipv6()
 
         # Server Config
-        self.peers_config.append({
-            '# Name': name,
-            'PublicKey': peer_public_key,
-            'PresharedKey': peer_preshared_key,
-            'AllowedIPs': ', '.join([str(v + 0) for v in [ip, ipv6] if v]),  # Convert to /32 or /128
-        })
+        self.peers_config.append(
+            {
+                '# Name': name,
+                'PublicKey': peer_public_key,
+                'PresharedKey': peer_preshared_key,
+                'AllowedIPs': ', '.join([str(v + 0) for v in [ip, ipv6] if v]),   # To /32 or /128
+            }
+        )
         self.save_server_config()
 
         # Peer Config
@@ -403,21 +449,24 @@ class WGTool:
         if ipv6:
             allowed_ips += ', ::/0'
         if not dns:
-            dns = ['8.8.8.8', '1.1.1.1']
+            dns = []
+            dns += DEFAULT_DNS_LIST_IPV4
             if ipv6:
-                dns += ['2001:4860:4860::8888', '2606:4700:4700::1111']
+                dns += DEFAULT_DNS_LIST_IPV6
 
         interface_config = {
             'Address': ', '.join([str(v) for v in [ip, ipv6] if v]),
             'PrivateKey': peer_private_key,
             'DNS': ', '.join([str(v) for v in dns if v]),
         }
-        peer_config = [{
-            'PublicKey': self.public_key,
-            'PresharedKey': peer_preshared_key,
-            'AllowedIPs': allowed_ips,
-            'Endpoint': endpoint
-        }]
+        peer_config = [
+            {
+                'PublicKey': self.public_key,
+                'PresharedKey': peer_preshared_key,
+                'AllowedIPs': allowed_ips,
+                'Endpoint': endpoint,
+            }
+        ]
         logger.debug(f'New peer "{name}"')
         logger.debug(f'  Interface: {pp.pformat(interface_config)}')
         logger.debug(f'  Peer:\n{pp.pformat(peer_config)}')
@@ -475,7 +524,7 @@ class WGTool:
                         r'#\s*net.ipv4.ip_forward\s*=\s*1',
                         'net.ipv4.ip_forward=1',
                         new_content,
-                        re.MULTILINE
+                        re.MULTILINE,
                     )
                 else:
                     new_content = new_content.strip('\n') + '\nnet.ipv4.ip_forward=1\n'
@@ -487,7 +536,7 @@ class WGTool:
                         r'#\s*net.ipv6.conf.all.forwarding\s*=\s*1',
                         'net.ipv6.conf.all.forwarding=1',
                         new_content,
-                        re.MULTILINE
+                        re.MULTILINE,
                     )
                 else:
                     new_content = new_content.strip('\n') + '\nnet.ipv6.conf.all.forwarding=1\n'
@@ -511,9 +560,11 @@ class WGTool:
         print('Restarting service...')
         if os.name != 'posix':
             return False
-        command = ('sudo systemctl enable wg-quick@wg0.service && '
-                   'sudo systemctl daemon-reload && '
-                   'sudo systemctl restart wg-quick@wg0')
+        command = (
+            'sudo systemctl enable wg-quick@wg0.service '
+            '&& sudo systemctl daemon-reload '
+            '&& sudo systemctl restart wg-quick@wg0 '
+        )
         result = self._run_command(command)
         print(result)
         return result
@@ -526,31 +577,93 @@ class WGToolException(Exception):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='WireGuard Configuration Tool')
     subparser = parser.add_subparsers(dest='action', required=True)
+
     # server
     parser_server = subparser.add_parser('server', help='Setup new server')
-    parser_server.add_argument('domain_name', metavar='<server-domain-name>',
-                               help='Server domain name used by peers. E.g. server1.duckdns.org')
-    parser_server.add_argument('-4', '--ip', metavar='<ip/mask>', help='IPv4 prefix with mask')
-    parser_server.add_argument('-6', '--ipv6', metavar='<ip/mask>', help='IPv6 prefix with mask')
-    parser_server.add_argument('-p', '--port', dest='ListenPort', type=int, default=51820, help='UDP port')
+    parser_server.add_argument(
+        'domain_name',
+        metavar='<server-domain-name>',
+        help='Server domain name used by peers. E.g. server1.duckdns.org',
+    )
+    parser_server.add_argument(
+        '-4',
+        '--ip',
+        metavar='<ip/mask>',
+        help='IPv4 prefix with mask',
+    )
+    parser_server.add_argument(
+        '-6',
+        '--ipv6',
+        metavar='<ip/mask>',
+        help='IPv6 prefix with mask',
+    )
+    parser_server.add_argument(
+        '-p',
+        '--port',
+        dest='ListenPort',
+        type=int,
+        default=51820,
+        help='UDP port',
+    )
+
     # list
     parser_list = subparser.add_parser('list', help='List peers')  # noqa F841
+
     # add
     parser_add = subparser.add_parser('add', help='Add peer')
-    parser_add.add_argument('name', help='Name to identify this new peer')
-    parser_add.add_argument('-n', '--dns', nargs='+', help='Optional, one or two DNS servers')
-    parser_add.add_argument('-e', '--endpoint', help='Optional, overwrites default. Format: <ip or domain name>:<port>')
-    parser_add.add_argument('-q', '--qrcode', action='store_true', help='Display QR code corresponding to config')
+    parser_add.add_argument(
+        'name',
+        help='Name to identify this new peer',
+    )
+    parser_add.add_argument(
+        '-n',
+        '--dns',
+        nargs='+',
+        help='Optional, one or two DNS servers',
+    )
+    parser_add.add_argument(
+        '-e', '--endpoint',
+        help='Optional, overwrites default. Format: <ip or domain name>:<port>',
+    )
+    parser_add.add_argument(
+        '-q',
+        '--qrcode',
+        action='store_true',
+        help='Display QR code corresponding to config',
+    )
+
     # del
     parser_del = subparser.add_parser('delete', help='Delete peer')
-    parser_del.add_argument('name', help='Peer name or number to be added')
+    parser_del.add_argument(
+        'name',
+        help='Peer name or number to be added',
+    )
+
     # others
-    parser.add_argument('-f', '--file', metavar='<conf-file>', required=(os.name == 'nt'),
-                        help=('For Windows users mainly, path to wireguard config file. '
-                              'Default is /etc/wireguard/wg0.conf'))
-    parser.add_argument('-i', '--ifname', metavar='<interface>', default='eth0',
-                        help='For linux users, define LAN interface used with iptables rules. Default is "eth0"')
-    parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument(
+        '-f',
+        '--file',
+        metavar='<conf-file>',
+        required=(os.name == 'nt'),
+        help=(
+            'For Windows users mainly, path to wireguard config file. '
+            'Default is /etc/wireguard/wg0.conf'
+        ),
+    )
+    parser.add_argument(
+        '-i',
+        '--ifname',
+        metavar='<interface>',
+        default='eth0',
+        help='For linux users, define LAN interface used with iptables rules. Default is "eth0"',
+    )
+    parser.add_argument(
+        '-d',
+        '--debug',
+        action='store_true',
+        help='Enable debug mode',
+    )
+
     args = parser.parse_args()
     if not args.file and os.name != 'nt':
         args.file = '/etc/wireguard/wg0.conf'
@@ -575,7 +688,10 @@ def main() -> None:
         # server
         if config.action == 'server':
             if wg.server_config_file_present():
-                response = input('Do you want to overwrite the existing configuration and delete any peers? [y/N] ')
+                response = input(
+                    'Do you want to overwrite the existing configuration '
+                    'and delete any peers? [y/N] '
+                )
                 if response.lower()[:1] != 'y':
                     sys.exit(0)
 
@@ -596,7 +712,9 @@ def main() -> None:
         elif config.action == 'add':
             wg.load_server_config()
             if wg.peer_present(config.name):
-                response = input(f'Peer "{config.name}" exists. Do you want to overwrite it? [y/N] ')
+                response = input(
+                    f'Peer "{config.name}" exists. Do you want to overwrite it? [y/N] '
+                )
                 if response.lower()[:1] != 'y':
                     sys.exit(0)
             try:
@@ -604,7 +722,11 @@ def main() -> None:
                 with open(file) as f:
                     print(f'Peer "{config.name}" config file: {file}\n\n{f.read()}\n')
                 if config.qrcode:
-                    print(subprocess.check_output(f'qrencode -t ansiutf8 -r "{file}"', shell=True, encoding='utf-8'))
+                    print(
+                        subprocess.check_output(
+                            f'qrencode -t ansiutf8 -r "{file}"', shell=True, encoding='utf-8'
+                        )
+                    )
                 wg.restart_systemctl_service()
             except (subprocess.SubprocessError, FileNotFoundError):
                 print('Note: To display peer config as a QR code, please install "qrencode"')
