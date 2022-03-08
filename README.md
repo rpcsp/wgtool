@@ -38,9 +38,9 @@ Adding peer "PeerA":
 
     wgtool add "PeerA"
 
-Adding peer "PeerA" with custom DNS and showing QR code:
+Adding peer "PeerA" with custom DNS, split-tunnel, and showing QR code:
 
-    wgtool add "PeerA" --dns 1.1.1.1 1.0.0.1 --qrcode
+    wgtool add "PeerA" --dns 1.1.1.1 1.0.0.1 --split-tunnel --qrcode
 
 Listing peers:
 
