@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setuptools.setup(
     name="wgtool",
-    version="1.1.3",
+    version="1.1.4",
     author="rpcsp",
     author_email="pcunha@hotmail.com",
     description="WireGuard Configuration Tool",
@@ -29,6 +29,6 @@ setuptools.setup(
     python_requires=">=3.7",
     entry_points="""\
     [console_scripts]
-    wgtool = wgtool.wgtool:main
-    """
+    wgtool = wgtool.cli:main
+    """,
 )
