@@ -174,7 +174,7 @@ def main() -> None:
                 if config.qrcode:
                     print(
                         subprocess.check_output(
-                            f'qrencode -t ansiutf8 -r "{file}"', shell=True, encoding='utf-8'
+                            f'cat "{file}" | qrencode -t ansiutf8', shell=True, encoding='utf-8'
                         )
                     )
                 wg.restart_systemctl_service()
