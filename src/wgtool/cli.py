@@ -18,6 +18,7 @@ logger = logging.getLogger()
 
 
 def parse_args() -> argparse.Namespace:
+    default_interface = WGTool.default_interface()
     parser = argparse.ArgumentParser(description='WireGuard Configuration Tool')
     subparser = parser.add_subparsers(dest='action', required=True)
 
@@ -97,15 +98,18 @@ def parse_args() -> argparse.Namespace:
         required=(os.name == 'nt'),
         help=(
             'For Windows users mainly, path to wireguard config file. '
-            'Default is /etc/wireguard/wg0.conf'
+            'Defaults to /etc/wireguard/wg0.conf'
         ),
     )
     parser.add_argument(
         '-i',
         '--ifname',
         metavar='<interface>',
-        default='eth0',
-        help='For linux users, define LAN interface used with iptables rules. Default is "eth0"',
+        default=default_interface,
+        help=(
+            'For linux users, define LAN interface used with iptables rules. '
+            f'Defaults to "{default_interface}"'
+        ),
     )
     parser.add_argument(
         '-d',

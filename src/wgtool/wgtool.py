@@ -30,7 +30,7 @@ POST_UP = (  # iptables, ifname, network
 POST_DN = (
     '{0} -D FORWARD   -i %i -o {1} -j ACCEPT; '
     '{0} -D FORWARD   -i {1} -o %i -j ACCEPT; '
-    '{0} -t nat -D POSTROUTING   -s {2} -o {1} -j MASQUERADE; '
+    '{0} -t nat -D POSTROUTING   -s {2} -o {1} -j MASQUERADE'
 )
 DEFAULT_DNS_LIST_IPV4 = ['8.8.8.8', '1.1.1.1']
 DEFAULT_DNS_LIST_IPV6 = ['2001:4860:4860::8888', '2606:4700:4700::1111']
@@ -42,15 +42,23 @@ pp = pprint.PrettyPrinter(indent=4, width=100)
 
 
 class WGTool:
-    def __init__(self, file: str, ifname: str = 'eth0') -> None:
+    def __init__(self, file: str, ifname: str = '') -> None:
         self.file = file
-        self.ifname = ifname
+        self.ifname = ifname or self.default_interface()
         self._server_ip = None
         self._server_ipv6 = None
         self.domain_name = ''
         self._public_key = {}
         self.interface_config = {}
         self.peers_config = []
+
+    @staticmethod
+    def default_interface() -> str:
+        try:
+            command = 'ip route list default | grep -Eo " dev ([0-9a-z]+)"'
+            return subprocess.check_output(command, shell=True, encoding='utf-8').strip().split()[1]
+        except Exception:
+            return 'eth0'
 
     @property
     def server_ip(self) -> IPv4Interface:
