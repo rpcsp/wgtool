@@ -23,14 +23,18 @@ if sys.version_info < MIN_PYTHON:
     sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
 
 POST_UP = (  # iptables, ifname, network
-    '{0} -I FORWARD 1 -i %i -o {1} -j ACCEPT; '
-    '{0} -I FORWARD 1 -i {1} -o %i -j ACCEPT; '
-    '{0} -t nat -I POSTROUTING 1 -s {2} -o {1} -j MASQUERADE'
+    '{iptable} -I FORWARD 1 -i %i -o {ifname} -j ACCEPT; '
+    '{iptable} -I FORWARD 1 -i {ifname} -o %i -j ACCEPT; '
+    '{iptable} -t nat -I POSTROUTING 1 -s {network} -o {ifname} -j MASQUERADE; '
+    '{iptable} -I INPUT 2 -i %i -j ACCEPT > /dev/null; '
+    '{iptable} -I INPUT 3 -p udp -m udp --dport {port} -j ACCEPT > /dev/null; '
 )
 POST_DN = (
-    '{0} -D FORWARD   -i %i -o {1} -j ACCEPT; '
-    '{0} -D FORWARD   -i {1} -o %i -j ACCEPT; '
-    '{0} -t nat -D POSTROUTING   -s {2} -o {1} -j MASQUERADE'
+    '{iptable} -D FORWARD   -i %i -o {ifname} -j ACCEPT; '
+    '{iptable} -D FORWARD   -i {ifname} -o %i -j ACCEPT; '
+    '{iptable} -t nat -D POSTROUTING   -s {network} -o {ifname} -j MASQUERADE; '
+    '{iptable} -D INPUT   -i %i -j ACCEPT > /dev/null; '
+    '{iptable} -D INPUT   -p udp -m udp --dport {port} -j ACCEPT > /dev/null; '
 )
 DEFAULT_DNS_LIST_IPV4 = ['8.8.8.8', '1.1.1.1']
 DEFAULT_DNS_LIST_IPV6 = ['2001:4860:4860::8888', '2606:4700:4700::1111']
@@ -124,9 +128,23 @@ class WGTool:
         if os.name == 'posix':
             command = []
             if self.server_ip:
-                command.append(POST_UP.format('iptables', self.ifname, self.server_ip.network))
+                command.append(
+                    POST_UP.format(
+                        iptable='iptables',
+                        ifname=self.ifname,
+                        network=self.server_ip.network,
+                        port=self.port,
+                    )
+                )
             if self.server_ipv6:
-                command.append(POST_UP.format('ip6tables', self.ifname, self.server_ipv6.network))
+                command.append(
+                    POST_UP.format(
+                        iptable='ip6tables',
+                        ifname=self.ifname,
+                        network=self.server_ipv6.network,
+                        port=self.port,
+                    )
+                )
             if command:
                 return self.interface_config.get('PostUp', '; '.join(command))
         return ''
@@ -136,9 +154,23 @@ class WGTool:
         if os.name == 'posix':
             command = []
             if self.server_ip:
-                command.append(POST_DN.format('iptables', self.ifname, self.server_ip.network))
+                command.append(
+                    POST_DN.format(
+                        iptable='iptables',
+                        ifname=self.ifname,
+                        network=self.server_ip.network,
+                        port=self.port,
+                    )
+                )
             if self.server_ipv6:
-                command.append(POST_DN.format('ip6tables', self.ifname, self.server_ipv6.network))
+                command.append(
+                    POST_DN.format(
+                        iptable='ip6tables',
+                        ifname=self.ifname,
+                        network=self.server_ipv6.network,
+                        port=self.port,
+                    )
+                )
             if command:
                 return self.interface_config.get('PostDown', '; '.join(command))
         return ''
