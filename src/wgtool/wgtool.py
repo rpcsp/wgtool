@@ -23,19 +23,22 @@ if sys.version_info < MIN_PYTHON:
     sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
 
 POST_UP = (  # iptables, ifname, network
-    "{iptable} -I FORWARD 1 -i %i -o {ifname} -j ACCEPT; "
-    "{iptable} -I FORWARD 1 -i {ifname} -o %i -j ACCEPT; "
-    "{iptable} -t nat -I POSTROUTING 1 -s {network} -o {ifname} -j MASQUERADE; "
-    "{iptable} -I INPUT 2 -i %i -j ACCEPT > /dev/null; "
-    "{iptable} -I INPUT 3 -p udp -m udp --dport {port} -j ACCEPT > /dev/null; "
+    "n=$({iptables} -L INPUT --line-number | head -3 | wc -l); "
+    "{iptables} -I FORWARD 1 -i %i -o {ifname} -j ACCEPT; "
+    "{iptables} -I FORWARD 1 -i {ifname} -o %i -j ACCEPT; "
+    "{iptables} -t nat -I POSTROUTING 1 -s {network} -o {ifname} -j MASQUERADE; "
+    "{iptables} -I INPUT $((n-1)) -i %i -j ACCEPT > /dev/null; "
+    "{iptables} -I INPUT $((n)) -p udp -m udp --dport {port} -j ACCEPT > /dev/null; "
 )
 POST_DN = (
-    "{iptable} -D FORWARD   -i %i -o {ifname} -j ACCEPT; "
-    "{iptable} -D FORWARD   -i {ifname} -o %i -j ACCEPT; "
-    "{iptable} -t nat -D POSTROUTING   -s {network} -o {ifname} -j MASQUERADE; "
-    "{iptable} -D INPUT   -i %i -j ACCEPT > /dev/null; "
-    "{iptable} -D INPUT   -p udp -m udp --dport {port} -j ACCEPT > /dev/null; "
+    "{iptables} -D FORWARD   -i %i -o {ifname} -j ACCEPT; "
+    "{iptables} -D FORWARD   -i {ifname} -o %i -j ACCEPT; "
+    "{iptables} -t nat -D POSTROUTING   -s {network} -o {ifname} -j MASQUERADE; "
+    "{iptables} -D INPUT   -i %i -j ACCEPT > /dev/null; "
+    "{iptables} -D INPUT   -p udp -m udp --dport {port} -j ACCEPT > /dev/null; "
 )
+DEFAULT_PORT = 51820
+DEFAULT_FILE = "/etc/wireguard/wg0.conf"
 DEFAULT_DNS_LIST_IPV4 = ["8.8.8.8", "1.1.1.1"]
 DEFAULT_DNS_LIST_IPV6 = ["2001:4860:4860::8888", "2606:4700:4700::1111"]
 
@@ -46,8 +49,8 @@ pp = pprint.PrettyPrinter(indent=4, width=100)
 
 
 class WGTool:
-    def __init__(self, file: str, ifname: str = "") -> None:
-        self.file = file
+    def __init__(self, file: str = DEFAULT_FILE, ifname: str = "") -> None:
+        self.file = file or DEFAULT_FILE
         self.ifname = ifname or self.default_interface()
         self._server_ip = None
         self._server_ipv6 = None
@@ -97,26 +100,26 @@ class WGTool:
         if not value:
             return
         try:
-            if not (1280 <= int(value) <= 65535):
+            if not 1280 <= int(value) <= 65535:
                 raise ValueError()
             self.interface_config["MTU"] = int(value)
-        except ValueError:
-            raise WGToolException("MTU must be an integer within 1280 and 65535")
+        except ValueError as e:
+            raise WGToolException("MTU must be an integer within 1280 and 65535") from e
 
     @property
     def port(self) -> int:
-        return self.interface_config.get("ListenPort", 51820)
+        return self.interface_config.get("ListenPort", DEFAULT_PORT)
 
     @port.setter
     def port(self, value):
         if not value:
             return
         try:
-            if not (1024 <= int(value) <= 65535):
+            if not 1024 <= int(value) <= 65535:
                 raise ValueError()
             self.interface_config["ListenPort"] = int(value)
-        except ValueError:
-            raise WGToolException("MTU must be an integer within 1024 and 65535")
+        except ValueError as e:
+            raise WGToolException("MTU must be an integer within 1024 and 65535") from e
 
     @property
     def endpoint(self) -> str:
@@ -130,7 +133,7 @@ class WGTool:
             if self.server_ip:
                 command.append(
                     POST_UP.format(
-                        iptable="iptables",
+                        iptables="iptables",
                         ifname=self.ifname,
                         network=self.server_ip.network,
                         port=self.port,
@@ -139,7 +142,7 @@ class WGTool:
             if self.server_ipv6:
                 command.append(
                     POST_UP.format(
-                        iptable="ip6tables",
+                        iptables="ip6tables",
                         ifname=self.ifname,
                         network=self.server_ipv6.network,
                         port=self.port,
@@ -156,7 +159,7 @@ class WGTool:
             if self.server_ip:
                 command.append(
                     POST_DN.format(
-                        iptable="iptables",
+                        iptables="iptables",
                         ifname=self.ifname,
                         network=self.server_ip.network,
                         port=self.port,
@@ -165,7 +168,7 @@ class WGTool:
             if self.server_ipv6:
                 command.append(
                     POST_DN.format(
-                        iptable="ip6tables",
+                        iptables="ip6tables",
                         ifname=self.ifname,
                         network=self.server_ipv6.network,
                         port=self.port,
@@ -340,8 +343,10 @@ class WGTool:
                 mask = str(new_value).split("/")[1]
                 new_value = ip_interface(f"{new_value.ip + 1}/{mask}")
             return new_value
-        except Exception:
-            raise WGToolException(f'Invalid IPv{ip_class.version} address: "{current_value}"')
+        except Exception as e:
+            raise WGToolException(
+                f'Invalid IPv{ip_class.version} address: "{current_value}"'
+            ) from e
 
     @staticmethod
     def _get_ip(text) -> Union[IPv4Interface, None]:
@@ -551,12 +556,12 @@ class WGTool:
                 if os.name == "nt":
                     return self._run_command(f'type "{file}" | wg pubkey')
                 return self._run_command(f'cat "{file}" | wg pubkey')
-            except subprocess.CalledProcessError:
-                raise WGToolException(f"Invalid private key: {private}")
+            except subprocess.CalledProcessError as e:
+                raise WGToolException(f"Invalid private key: {private}") from e
 
     def enable_forwarding(self) -> None:
         if os.name != "posix":
-            return False
+            return
 
         file = "/etc/sysctl.conf"
         try:
