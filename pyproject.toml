@@ -7,3 +7,23 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 100
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+line_length = 100
+
+[pycodestyle]
+max-line-length = 100
+ignore = [
+    "E203",
+    "E701"
+]
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+check_untyped_defs = true

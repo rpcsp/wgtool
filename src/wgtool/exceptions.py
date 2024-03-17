@@ -1,2 +1,2 @@
-class WGToolException(Exception):
+class WGToolError(Exception):
     pass

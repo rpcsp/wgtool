@@ -8,10 +8,14 @@ import sys
 import os
 import argparse
 import logging
-import subprocess
 
-from .wgtool import WGTool, DEFAULT_FILE, DEFAULT_PORT
-from .exceptions import WGToolException
+from wgtool.exceptions import WGToolError
+from wgtool import host
+from wgtool.models import DEFAULT_PORT, DEFAULT_FILE
+from wgtool.wgtool import WGTool
+from wgtool.qrcode import print_qrcode
+from pydantic_core import ValidationError
+
 
 logger = logging.getLogger()
 
@@ -19,7 +23,7 @@ logger = logging.getLogger()
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments"""
 
-    default_interface = WGTool.default_interface()
+    default_interface = host.default_interface()
     parser = argparse.ArgumentParser(description="WireGuard Configuration Tool")
     subparser = parser.add_subparsers(dest="action", required=True)
 
@@ -32,13 +36,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser_server.add_argument(
         "-4",
-        "--ip",
+        "--ipv4",
+        default="",
         metavar="<ip/mask>",
         help="IPv4 prefix with mask",
     )
     parser_server.add_argument(
         "-6",
         "--ipv6",
+        default="",
         metavar="<ip/mask>",
         help="IPv6 prefix with mask",
     )
@@ -51,8 +57,13 @@ def parse_args() -> argparse.Namespace:
         help="UDP port",
     )
 
-    # list
-    subparser.add_parser("list", help="List peers")
+    # show
+    parser_show = subparser.add_parser("show", help="show peers")
+    parser_show.add_argument(
+        "name",
+        nargs="?",
+        help="Peer name or number to be added",
+    )
 
     # add
     parser_add = subparser.add_parser("add", help="Add peer")
@@ -67,24 +78,13 @@ def parse_args() -> argparse.Namespace:
         help="Optional, one or two DNS servers",
     )
     parser_add.add_argument(
-        "-e",
-        "--endpoint",
-        help="Optional, overwrites default. Format: <ip or domain name>:<port>",
-    )
-    parser_add.add_argument(
-        "-q",
-        "--qrcode",
-        action="store_true",
-        help="Display QR code corresponding to config",
-    )
-    parser_add.add_argument(
         "-s",
         "--split-tunnel",
         action="store_true",
         help="Configure split tunneling (allow LAN access)",
     )
 
-    # del
+    # delete
     parser_del = subparser.add_parser("delete", help="Delete peer")
     parser_del.add_argument(
         "name",
@@ -130,90 +130,92 @@ def action_server(wg: WGTool, config: argparse.Namespace) -> None:
 
     if wg.server_config_file_present():
         response = input(
-            "Do you want to overwrite the existing configuration "
-            "and delete any peers? [y/N] "
+            "Do you want to overwrite the existing configuration and delete any peers? [y/N] "
         )
         if response.lower()[:1] != "y":
             sys.exit(0)
 
     params = {k: v for k, v in vars(config).items() if k != "action"}
-    wg.server_config_set(**params)
-    config = wg.save_server_config()
-    print(f'Content of the new configuration file "{wg.file}":\n\n{config}')
+    wg.set_config(**params)
+    wg.save_config()
+    print(f'Content of the new configuration file "{wg.file}":')
+    print(wg.config.model_dump_json(indent=4, exclude_unset=False))
     wg.enable_forwarding()
     wg.restart_systemctl_service()
 
 
-def action_list(wg: WGTool) -> None:
-    """Lists configured clients"""
+def action_show(wg: WGTool, args: argparse.Namespace) -> None:
+    """Show configured clients"""
 
-    wg.load_server_config()
-    print("List of configured peers:")
-    for index, name in wg.peers.items():
-        print(f"{index: >2}) {name}")
+    wg.load_config()
+    if args.name is None:
+        print("Configured peers:")
+        if not wg.peers:
+            print("  none")
+        for index, peer in enumerate(wg.peers):
+            print(f"  {index: >2}) {peer.name}")
+        return
+
+    request_peer = wg.get_peer(name_or_index=args.name)
+    if not request_peer:
+        raise WGToolError(f"Peer name or index not found: {args.name}")
+    print(request_peer.model_dump_json(indent=4, exclude_defaults=True))
 
 
 def action_add(wg: WGTool, config: argparse.Namespace) -> None:
     """Adds new client"""
 
-    wg.load_server_config()
-    if wg.peer_present(config.name):
-        response = input(
-            f'Peer "{config.name}" exists. Do you want to overwrite it? [y/N] '
-        )
+    wg.load_config()
+    if wg.get_peer(config.name):
+        response = input(f'Peer "{config.name}" exists. Do you want to overwrite it? [y/N] ')
         if response.lower()[:1] != "y":
             sys.exit(0)
-    try:
-        file = wg.peer_add(config.name, config.endpoint, config.dns, config.split_tunnel)
-        with open(file) as f:
-            print(f'Peer "{config.name}" config file: {file}\n\n{f.read()}\n')
-        if config.qrcode:
-            print(
-                subprocess.check_output(
-                    f'cat "{file}" | qrencode -t ansiutf8', shell=True, encoding="utf-8"
-                )
-            )
-        wg.restart_systemctl_service()
-    except (subprocess.SubprocessError, FileNotFoundError):
-        print('Note: To display peer config as a QR code, please install "qrencode"')
+
+    file = wg.add_peer(config.name, config.dns, config.split_tunnel)
+    with open(file) as f:
+        print(f'Peer "{config.name}" config file: {file}\n\n{f.read()}\n')
+    print_qrcode(file)
+    wg.restart_systemctl_service()
 
 
-def action_delete(wg: WGTool, config: argparse.Namespace):
+def action_delete(wg: WGTool, config: argparse.Namespace) -> None:
     """Deletes a client"""
 
-    wg.load_server_config()
-    if not wg.peer_present(config.name):
+    wg.load_config()
+    if not wg.get_peer(config.name):
         sys.exit(f'error: Peer "{config.name}" not found')
     wg.peer_delete(config.name)
     wg.restart_systemctl_service()
 
 
 def main() -> None:
-    config = parse_args()
-    if config.debug:
+    args = parse_args()
+    if args.debug:
         logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(message)s")
-    logger.debug(f"CLI arguments: {config}")
+    logger.debug(f"CLI arguments: {args}")
 
     try:
-        wg = WGTool(config.file, ifname=config.ifname)
+        wg = WGTool(args.file, ifname=args.ifname)
+        if args.action in ["add", "delete"]:
+            while not args.name:
+                args.name = input("Peer name: ")
+        if args.action == "server":
+            action_server(wg, args)
+        elif args.action == "show":
+            action_show(wg, args)
+        elif args.action == "add":
+            action_add(wg, args)
+        elif args.action == "delete":
+            action_delete(wg, args)
 
-        if config.action in ["add", "delete", "qrcode"]:
-            while not config.name:
-                config.name = input("Peer name: ")
-
-        if config.action == "server":
-            action_server(wg, config)
-
-        elif config.action == "list":
-            action_list(wg)
-
-        elif config.action == "add":
-            action_add(wg, config)
-
-        elif config.action == "delete":
-            action_delete(wg, config)
-
-    except WGToolException as e:
+    except PermissionError:
+        sys.exit("error: Permission denied. You need root privilege to run this commad.")
+    except ValidationError as e:
+        for item in e.errors():
+            fields = ", ".join([str(e) for e in item["loc"]])
+            print(f"failed to validate '{fields}': {item['msg']}")
+        sys.exit("error: one or more validations failed")
+    except WGToolError as e:
         sys.exit(f"error: {e}")
 
 
