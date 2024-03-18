@@ -1,6 +1,7 @@
-import tempfile
 import os
 import subprocess
+import tempfile
+
 from wgtool.exceptions import WGToolError
 
 

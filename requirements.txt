@@ -2,3 +2,4 @@ pydantic >= 2.*
 black >= 24.*
 flake8 >= 7.*
 mypy >= 1.9.*
+isort >= 5.*

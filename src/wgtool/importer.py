@@ -1,10 +1,16 @@
-from __future__ import annotations
 import re
-from typing import Dict, List, Optional
+from ipaddress import (
+    IPv4Address,
+    IPv4Interface,
+    IPv6Address,
+    IPv6Interface,
+    ip_address,
+    ip_interface,
+)
+from typing import Dict, List, Optional, Union
+
 from wgtool.exceptions import WGToolError
 from wgtool.models import WGConfigGroup, WGPeerConfig, WGServerConfig
-from ipaddress import ip_interface
-
 
 re_group = re.compile(r"\[(\w+)\]")
 re_key_value = re.compile(r"^([^=]+)\s*=\s*(.+)$")
@@ -18,15 +24,11 @@ class WGServerConfigImporter:
 
     def read_interface(self, attrs: Dict[str, str]) -> None:
         cfg = self.config
-        for item in attrs.pop("Address", "").split(","):
-            if item.strip():
-                address = ip_interface(item.strip())
-                if address.version == 4:
-                    cfg.ipv4 = address.with_prefixlen
-                elif address.version == 6:
-                    cfg.ipv6 = address.with_prefixlen
-
-        cfg = cfg
+        for ip in self._to_ip_interface_list(attrs.pop("Address", "")):
+            if isinstance(ip, IPv6Interface):
+                self.ipv6 = ip
+            else:
+                self.ipv4 = ip
         cfg.mtu = int(attrs.pop("MTU", "") or cfg.mtu)
         cfg.post_up = attrs.pop("PostUp", "") or cfg.post_up
         cfg.post_down = attrs.pop("PostDown", "") or cfg.post_down
@@ -49,15 +51,14 @@ class WGServerConfigImporter:
         for peer in peers:
             name = peer.key_values.pop("# Name", "") or peer_names.get_name()
             pc = WGPeerConfig(name=name)
-            for ip_string in peer.key_values.pop("AllowedIPs", "").split(","):
-                ip_string = ip_string.strip()
-                if ip_string and ip_interface(ip_string).version == 4:
-                    pc.ipv4 = ip_string
-                elif ip_string and ip_interface(ip_string).version == 6:
-                    pc.ipv6 = ip_string
+            for ip in self._to_ip_interface_list(peer.key_values.pop("AllowedIPs", "")):
+                if isinstance(ip, IPv4Interface):
+                    pc.ipv4 = ip
+                else:
+                    pc.ipv6 = ip
             pc.public_key = peer.key_values.pop("PublicKey", pc.public_key)
             pc.preshared_key = peer.key_values.pop("PresharedKey", pc.preshared_key)
-            pc.dns = peer.key_values.pop("DNS", pc.private_key)
+            pc.dns = self._to_ip_address_list(peer.key_values.pop("DNS", "")) or pc.dns
             pc.server = self.config.server
             pc.others = {k: v for k, v in peer.key_values.items() if k[0] == k[0].upper()}
             self.config.peers.append(pc)
@@ -94,3 +95,9 @@ class WGServerConfigImporter:
                 value = match.group(2).strip()
                 key_values[key] = value
         return config
+
+    def _to_ip_interface_list(self, address: str) -> List[Union[IPv4Interface, IPv6Interface]]:
+        return [ip_interface(ip.strip()) for ip in address.split(",") if ip.strip()]
+
+    def _to_ip_address_list(self, address: str) -> List[Union[IPv4Address, IPv6Address]]:
+        return [ip_address(ip.strip()) for ip in address.split(",") if ip.strip()]

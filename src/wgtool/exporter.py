@@ -1,6 +1,6 @@
-from __future__ import annotations
 import os
 from typing import Dict, List
+
 from wgtool.models import WGConfigGroup, WGPeerConfig, WGServerConfig
 
 
@@ -35,7 +35,7 @@ class WGServerConfigExporter(WGConfigExporter):
 
     def get_interface_group(self) -> WGConfigGroup:
         interface: Dict[str, str] = {
-            "Address": f"{self.config.ipv4}, {self.config.ipv6}".strip(", "),
+            "Address": self.config.address,
             "ListenPort": str(self.config.server.port),
             "MTU": str(self.config.mtu),
             "PostUp": self.config.post_up,
@@ -54,7 +54,7 @@ class WGServerConfigExporter(WGConfigExporter):
                 "# Name": peer.name,
                 "PublicKey": peer.public_key,
                 "PresharedKey": peer.preshared_key,
-                "AllowedIPs": f"{peer.ipv4}, {peer.ipv6}".strip(", "),
+                "AllowedIPs": peer.address,
                 **peer.others,
             }
             peers.append(WGConfigGroup("Peer", peer_attributes))
@@ -72,8 +72,8 @@ class WGPeerConfigExporter(WGConfigExporter):
 
     def get_interface_group(self) -> WGConfigGroup:
         interface_attributes = {
-            "Address": f"{self.peer_config.ipv4}, {self.peer_config.ipv6}".strip(", "),
-            "DNS": self.peer_config.dns,
+            "Address": self.peer_config.address,
+            "DNS": ", ".join(str(ip) for ip in self.peer_config.dns),
             "PrivateKey": self.peer_config.private_key,
         }
         interface_attributes = {k: v for k, v in interface_attributes.items() if v}
@@ -82,7 +82,7 @@ class WGPeerConfigExporter(WGConfigExporter):
     def get_peer_group(self) -> WGConfigGroup:
         peer_attributes = {
             "Endpoint": self.peer_config.server.endpoint,
-            "AllowedIPs": self.peer_config.allowed_ips,
+            "AllowedIPs": ", ".join(str(ip) for ip in self.peer_config.allowed_ips),
             "PresharedKey": self.peer_config.preshared_key,
             "PublicKey": self.peer_config.server.public_key,
         }

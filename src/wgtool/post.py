@@ -1,7 +1,8 @@
-from ipaddress import ip_interface
-from wgtool.models import WGServerConfig
-import subprocess
 import os
+import subprocess
+from ipaddress import ip_interface
+
+from wgtool.models import WGServerConfig
 
 POST_UP_LINE_NUMBER = "{iptables} -L INPUT --line-number | head -3 | wc -l"
 POST_UP = (  # iptables, ifname, network

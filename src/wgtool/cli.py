@@ -4,18 +4,18 @@ WireGuard Configuration Tool CLI (wgtool)
 by rpcsp (pcunha at hotmail.com) - 10/2021
 https://github.com/rpcsp/wgtool
 """
-import sys
-import os
 import argparse
 import logging
+import os
+import sys
 
-from wgtool.exceptions import WGToolError
-from wgtool import host
-from wgtool.models import DEFAULT_PORT, DEFAULT_FILE
-from wgtool.wgtool import WGTool
-from wgtool.qrcode import print_qrcode
 from pydantic_core import ValidationError
 
+from wgtool import host
+from wgtool.exceptions import WGToolError
+from wgtool.models import DEFAULT_FILE, DEFAULT_PORT
+from wgtool.qrcode import print_qrcode
+from wgtool.wgtool import WGTool
 
 logger = logging.getLogger()
 
@@ -215,7 +215,7 @@ def main() -> None:
             fields = ", ".join([str(e) for e in item["loc"]])
             print(f"failed to validate '{fields}': {item['msg']}")
         sys.exit("error: one or more validations failed")
-    except WGToolError as e:
+    except (WGToolError, ValueError) as e:
         sys.exit(f"error: {e}")
 
 

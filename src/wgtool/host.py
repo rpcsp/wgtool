@@ -1,7 +1,7 @@
+import os
 import re
 import shutil
 import subprocess
-import os
 
 
 def default_interface() -> str:

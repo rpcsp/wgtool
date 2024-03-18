@@ -4,20 +4,18 @@ WireGuard Configuration Tool (wgtool)
 by rpcsp (pcunha at hotmail.com) - 10/2021
 https://github.com/rpcsp/wgtool
 """
-from __future__ import annotations
-import sys
-import os
 import logging
+import os
 import pprint
-from ipaddress import ip_interface
-from typing import List, Literal, Optional, Union
+import sys
+from ipaddress import IPv4Interface, IPv6Interface, ip_address, ip_interface, ip_network
+from typing import List, Literal, Optional, Union, overload
+
+from wgtool import host, post, wgcli
 from wgtool.exceptions import WGToolError
-from wgtool import post, wgcli
 from wgtool.exporter import WGPeerConfigExporter, WGServerConfigExporter
-from wgtool import host
 from wgtool.importer import WGServerConfigImporter
 from wgtool.models import DEFAULT_FILE, WGPeerConfig, WGServerConfig
-
 
 MIN_PYTHON = (3, 8)
 if sys.version_info < MIN_PYTHON:
@@ -89,15 +87,6 @@ class WGTool:
     def add_peer(
         self, name: str, dns: Optional[List[str]] = None, split_tunnel: bool = False
     ) -> str:
-        # # Validation
-        # endpoint = endpoint or self.endpoint
-        # if not endpoint:
-        #     raise WGToolError("Endpoint is required, but not configured. Provide this parameter.")
-        # if ":" not in endpoint:
-        #     raise WGToolError("Endpoint must include port: <ip/name>:<port>")
-        # if name.isdigit():
-        #     raise WGToolError(f"Peer name cannot be a number: {name}")
-
         # Remove peer with same name
         if peer := self.get_peer(name):
             self.config.peers.remove(peer)
@@ -111,13 +100,13 @@ class WGTool:
         ipv6 = self.get_next_address("ipv6")
 
         if split_tunnel:
-            allowed_ips = "0.0.0.0/1, 128.0.0.0/1"
+            allowed_ips = ["0.0.0.0/1", "128.0.0.0/1"]
             if ipv6:
-                allowed_ips = ", ::/1, 8000::/1"
+                allowed_ips += ["::/1", "8000::/1"]
         else:
-            allowed_ips = "0.0.0.0/0"
+            allowed_ips = ["0.0.0.0/0"]
             if ipv6:
-                allowed_ips += ", ::/0"
+                allowed_ips += ["::/0"]
         if not dns:
             dns = [*DEFAULT_DNS_LIST_IPV4]
             if ipv6:
@@ -128,11 +117,11 @@ class WGTool:
             preshared_key=peer_preshared_key,
             private_key=peer_private_key,
             public_key=peer_public_key,
+            server=self.config.server,
             ipv4=ipv4,
             ipv6=ipv6,
-            allowed_ips=allowed_ips,
-            server=self.config.server,
-            dns=", ".join(dns),
+            allowed_ips=[ip_network(ip) for ip in allowed_ips],
+            dns=[ip_address(ip) for ip in dns],
         )
         self.config.peers.append(peer)
         self.save_config()
@@ -144,22 +133,32 @@ class WGTool:
         logger.debug(f"  Peer:\n{pp.pformat(peer)}")
         return file
 
-    def get_next_address(self, ipv: Literal["ipv4", "ipv6"], required: bool = False) -> str:
-        """Return the next available IPv6 address"""
-        server_ip = getattr(self.config, ipv)
+    @overload
+    def get_next_address(
+        self, ipv: Literal["ipv4"], required: bool = False
+    ) -> Optional[IPv4Interface]: ...
+
+    @overload
+    def get_next_address(
+        self, ipv: Literal["ipv6"], required: bool = False
+    ) -> Optional[IPv6Interface]: ...
+
+    def get_next_address(
+        self, ipv: Literal["ipv4", "ipv6"], required: bool = False
+    ) -> Union[IPv4Interface, IPv6Interface, None]:
+        """Return the next available IP address"""
+        server_ip: Union[IPv4Interface, IPv6Interface] = getattr(self.config, ipv)
         if not server_ip and not required:
-            return ""
+            return None
         if not server_ip:
             raise WGToolError(f"Server {ipv} not found")
 
-        addresses_in_use = [ip_interface(getattr(p, ipv)).ip for p in self.peers]
-        addresses_in_use.append(ip_interface(server_ip).ip)
+        addresses_in_use = [server_ip.ip] + [ip_interface(getattr(p, ipv)).ip for p in self.peers]
 
-        for address in ip_interface(server_ip).network.hosts():
+        for address in server_ip.network.hosts():
             if address in addresses_in_use:
                 continue
-            mask = server_ip.split("/")[1]
-            return f"{address}/{mask}"
+            return ip_interface((address, server_ip.network.prefixlen))
         raise WGToolError("Cannot find free IP address for peer")
 
     def peer_delete(self, name_or_index: str) -> None:
