@@ -9,16 +9,14 @@ It is meant to be used in new deployments and supports the following action:
 - Remove peers
 - List peers
 
-When a peer is added, the tool can display a QR code with the configuration if "qrencode" is available.
+When a peer is added, the tool generates a file and displays a QR code with the configuration.
 
 ## Requirements
 
 - Required:
-  - python 3.7 or newer
+  - python 3.8 or newer
   - Updated python pip
-
-- Optional:
-  - qrencode 4 or newer
+  - Dependencies from requirements.txt
 
 ## Installation
 
@@ -38,9 +36,9 @@ Adding peer "PeerA":
 
     wgtool add "PeerA"
 
-Adding peer "PeerA" with custom DNS, split-tunnel, and showing QR code:
+Adding peer "PeerA" with custom DNS, split-tunnel:
 
-    wgtool add "PeerA" --dns 1.1.1.1 1.0.0.1 --split-tunnel --qrcode
+    wgtool add "PeerA" --dns 1.1.1.1 1.0.0.1 --split-tunnel
 
 Listing peers:
 

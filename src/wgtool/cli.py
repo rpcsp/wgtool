@@ -173,8 +173,9 @@ def action_add(wg: WGTool, config: argparse.Namespace) -> None:
 
     file = wg.add_peer(config.name, config.dns, config.split_tunnel)
     with open(file) as f:
-        print(f'Peer "{config.name}" config file: {file}\n\n{f.read()}\n')
-    print_qrcode(file)
+        content = f.read()
+    print(f'Peer "{config.name}" config file: {file}\n\n{content}\n')
+    print_qrcode(content)
     wg.restart_systemctl_service()
 
 

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setuptools.setup(
     name="wgtool",
-    version="1.1.9",
+    version="1.1.10",
     author="rpcsp",
     author_email="pcunha@hotmail.com",
     description="WireGuard Configuration Tool",
