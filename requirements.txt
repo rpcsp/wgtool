@@ -1,2 +1,2 @@
 pydantic == 2.*
-qrcode == 7.4.*
+qrcode == 7.*

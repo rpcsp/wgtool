@@ -55,4 +55,4 @@ If WireGuard Server is on a Windows machine, you must provide the path to the co
 
 ## License
 
-MIT
+GNU GPLv3

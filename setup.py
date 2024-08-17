@@ -1,6 +1,7 @@
 import setuptools
 
-with open("README.md", "r", encoding="utf-8") as f:
+
+with open("README.md") as f:
     long_description = f.read()
 
 setuptools.setup(
@@ -26,6 +27,7 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.8",
+    install_requires=["pydantic", "qrcode"],
     entry_points="""\
     [console_scripts]
     wgtool = wgtool.cli:main
