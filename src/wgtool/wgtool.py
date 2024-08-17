@@ -88,7 +88,8 @@ class WGTool:
         self, name: str, dns: Optional[List[str]] = None, split_tunnel: bool = False
     ) -> str:
         # Remove peer with same name
-        if peer := self.get_peer(name):
+        peer = self.get_peer(name)
+        if peer:
             self.config.peers.remove(peer)
 
         # Keys

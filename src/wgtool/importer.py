@@ -86,13 +86,15 @@ class WGServerConfigImporter:
             if not line:
                 continue
 
-            if match := re_group.match(line):
-                name = match.group(1).strip()
+            match1 = re_group.match(line)
+            match2 = re_key_value.match(line)
+            if match1:
+                name = match1.group(1).strip()
                 key_values = {}
                 config.append(WGConfigGroup(name, key_values))
-            elif match := re_key_value.match(line):
-                key = match.group(1).strip()
-                value = match.group(2).strip()
+            elif match2:
+                key = match2.group(1).strip()
+                value = match2.group(2).strip()
                 key_values[key] = value
         return config
 

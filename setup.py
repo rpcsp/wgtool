@@ -6,7 +6,7 @@ with open("README.md") as f:
 
 setuptools.setup(
     name="wgtool",
-    version="1.1.11",
+    version="1.1.12",
     author="rpcsp",
     author_email="pcunha@hotmail.com",
     description="WireGuard Configuration Tool",
@@ -20,13 +20,14 @@ setuptools.setup(
     classifiers=[
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.8",
+    python_requires=">=3.7",
     install_requires=["pydantic", "qrcode"],
     entry_points="""\
     [console_scripts]
