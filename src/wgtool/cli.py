@@ -209,6 +209,8 @@ def main() -> None:
         elif args.action == "delete":
             action_delete(wg, args)
 
+    except FileNotFoundError:
+        print("Wireguard is not configured yet")
     except PermissionError:
         sys.exit("error: Permission denied. You need root privilege to run this commad.")
     except ValidationError as e:

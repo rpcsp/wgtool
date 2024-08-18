@@ -9,7 +9,7 @@ from ipaddress import (
 )
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_PORT = 51820
 DEFAULT_FILE = "/etc/wireguard/wg0.conf"
@@ -42,12 +42,13 @@ class WGPeerConfig(BaseModel):
     def address(self) -> str:
         return ", ".join([str(ip) for ip in [self.ipv4, self.ipv6] if ip])
 
-    @validator("others")
+    @field_validator("others")
     def valid_others(cls, value: Dict[str, str]) -> Dict[str, str]:
         return {k: v for k, v in value.items() if k[0].upper() == k[0]}
 
-    class Config:
-        validate_assignment = True
+    model_config = {
+        "validate_assignment": True
+    }
 
 
 class WGServerConfig(BaseModel):
@@ -64,24 +65,25 @@ class WGServerConfig(BaseModel):
     def address(self) -> str:
         return ", ".join([str(ip) for ip in [self.ipv4, self.ipv6] if ip])
 
-    @validator("others")
+    @field_validator("others")
     def valid_others(cls, value: Dict[str, str]) -> Dict[str, str]:
         return {k: v for k, v in value.items() if k[0].upper() == k[0]}
 
-    @validator("ipv4")
+    @field_validator("ipv4")
     def ipv4_max_prefix_len(cls, value: IPv4Interface) -> IPv4Interface:
         if value.network.prefixlen > 30:
             raise ValueError("Server interface ipv4 address mask must be <= 30")
         return value
 
-    @validator("ipv6")
+    @field_validator("ipv6")
     def ipv6_max_prefix_len(cls, value: Optional[IPv6Interface]) -> Optional[IPv6Interface]:
         if value is not None and value.network.prefixlen <= 126:
             raise ValueError("Server interface ipv6 address mask must be <= 126")
         return value
 
-    class Config:
-        validate_assignment = True
+    model_config = {
+        "validate_assignment": True
+    }
 
 
 @dataclass

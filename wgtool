@@ -1,11 +1,55 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
 
-import os
-import sys
+WORKDIR=$(dirname -- "$0")
+ENVBIN="${WORKDIR}/.venv/bin"
+PYTHON="${ENVBIN}/python"
+ACTIVATE="${ENVBIN}/activate"
+APT_UPDATED=0
 
-if __name__ == "__main__":
-    path = os.path.realpath(os.path.dirname(__file__))
-    os.chdir(path)
-    sys.path.insert(0, "src")
-    from src.wgtool.cli import main  # fmt: skip
-    main()
+install_if_not_found () {
+    if [ $? -eq 0 ]; then
+        echo OK
+    else
+        echo installation required
+        if [ $APT_UPDATED -eq 0 ]; then
+            apt update
+        fi
+        apt install -y $1
+    fi
+}
+
+
+if [ "$(id -u)" != "0" ]; then
+    echo "This script must be run as root"
+    exit 1
+fi
+
+if [[ ! -f "${PYTHON}" ]]; then
+    echo Installing wgtool...
+
+    # Getting python path
+    printf "Using python... "
+    GLOBAL_PYTHON=$(which python3 || which python)
+    echo ${GLOBAL_PYTHON}
+
+    # Installing dependencies
+    printf "Checking pip... "
+    $GLOBAL_PYTHON -m pip --version > /dev/null 2>&1
+    install_if_not_found python3-pip
+
+    printf "Checking iproute2... "
+    command -v ip &> /dev/null
+    install_if_not_found iproute2
+
+    # Creating venv
+    echo Creating venv... ${ENVBIN}
+    $GLOBAL_PYTHON -m venv .venv
+    source ${ENVBIN}/activate
+
+    echo Installing requirements...
+    $(basename $GLOBAL_PYTHON) -m pip install --upgrade pip
+    $(basename $GLOBAL_PYTHON) -m pip install -r requirements.txt
+    deactivate
+fi
+
+PYTHONPATH="${WORKDIR}/src" ${PYTHON} -c 'from wgtool.cli import main; main()' "$@"
