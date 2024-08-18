@@ -9,5 +9,5 @@ fi
 
 service docker start
 sleep 2
-docker build -f ${WORKDIR}/Dockerfile.python38 -t wgtool ${WORKDIR}/..
+docker build -f ${WORKDIR}/Dockerfile -t wgtool ${WORKDIR}/../..
 docker run -it wgtool show
