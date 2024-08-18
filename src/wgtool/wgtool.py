@@ -9,15 +9,20 @@ import os
 import pprint
 import sys
 from ipaddress import IPv4Interface, IPv6Interface, ip_address, ip_interface, ip_network
-from typing import List, Literal, Optional, Union, overload
+from typing import List, Optional, Union, overload
 
 from wgtool import host, post, wgcli
 from wgtool.exceptions import WGToolError
 from wgtool.exporter import WGPeerConfigExporter, WGServerConfigExporter
 from wgtool.importer import WGServerConfigImporter
 from wgtool.models import DEFAULT_FILE, WGPeerConfig, WGServerConfig
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
-MIN_PYTHON = (3, 8)
+
+MIN_PYTHON = (3, 7)
 if sys.version_info < MIN_PYTHON:
     sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
 
