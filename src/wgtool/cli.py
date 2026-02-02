@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""
-WireGuard Configuration Tool CLI (wgtool)
+"""WireGuard Configuration Tool CLI (wgtool)
+
+Provides command-line interface for managing WireGuard configurations.
 by rpcsp (pcunha at hotmail.com) - 10/2021
 https://github.com/rpcsp/wgtool
 """
@@ -11,7 +12,7 @@ import os
 import shutil
 import sys
 
-from pydantic_core import ValidationError
+from pydantic import ValidationError
 
 from wgtool import host
 from wgtool.exceptions import WGToolError
@@ -133,12 +134,10 @@ def parse_args() -> argparse.Namespace:
 def action_server(wg: WGTool, config: argparse.Namespace) -> None:
     """Creates server config"""
 
-    if wg.server_config_file_present():
-        response = input(
-            "Do you want to overwrite the existing configuration and delete any peers? [y/N] "
-        )
-        if response.lower()[:1] != "y":
-            sys.exit(0)
+    if wg.server_config_file_present() and not _confirm(
+        "Do you want to overwrite the existing configuration and delete any peers? [y/N] "
+    ):
+        sys.exit(0)
 
     params = {k: v for k, v in vars(config).items() if k != "action"}
     wg.set_config(**params)
@@ -171,10 +170,8 @@ def action_add(wg: WGTool, config: argparse.Namespace) -> None:
     """Adds new client"""
 
     wg.load_config()
-    if wg.get_peer(config.name):
-        response = input(f'Peer "{config.name}" exists. Do you want to overwrite it? [y/N] ')
-        if response.lower()[:1] != "y":
-            sys.exit(0)
+    if wg.get_peer(config.name) and not _confirm(f'Peer "{config.name}" exists. Overwrite? [y/N] '):
+        sys.exit(0)
 
     file = wg.add_peer(config.name, config.dns, config.split_tunnel)
     with open(file) as f:
@@ -237,5 +234,13 @@ def _validate_required_binaries() -> None:
         sys.exit(f"error: required binary(s) not found: {', '.join(missing)}")
 
 
+def _confirm(prompt: str) -> bool:
+    """Prompt the user for a yes/no answer. Returns True for yes."""
+    return input(prompt).strip().lower().startswith("y")
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit("Interrupted by user")
