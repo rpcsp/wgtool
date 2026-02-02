@@ -1,25 +1,50 @@
-[build-system]
-requires = [
-    "setuptools >=42",
-    "wheel"
+[project]
+name = "wgtool"
+version = "0.1.0"
+description = "WireGuard Server Configuration Tool"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic==2.*", 
+    "qrcode==7.*",
 ]
-build-backend = "setuptools.build_meta"
 
-[tool.black]
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.ruff]
+# Target Python version
+target-version = "py310"
 line-length = 100
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-include_trailing_comma = true
-line_length = 100
-
-[pycodestyle]
-max-line-length = 100
-ignore = [
-    "E203",
-    "E701"
+[tool.ruff.lint]
+select = [
+    "ASYNC",  # flake8-async (checks for async issues)
+    "B",      # flake8-bugbear (common design flaws/bugs)
+    "C4",     # flake8-comprehensions (better list/set/dict comprehensions)
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "FA",     # flake8-future-annotations
+    "I",      # isort (import sorting)
+    "ISC",    # flake8-implicit-str-concat
+    "N",      # pep8-naming (variable/class naming conventions)
+    "PT",     # flake8-pytest-style (if you use pytest)
+    "RET",    # flake8-return (checks return statements)
+    "RUF",    # Ruff-specific rules
+    "S",      # flake8-bandit (security checks like hardcoded passwords)
+    "SIM",    # flake8-simplify (suggests code simplifications)
+    "UP",     # pyupgrade (upgrades syntax to modern Python)
+    "W",      # pycodestyle warnings
 ]
+ignore = [
+    "E203",   # Whitespace before ':' (conflicts with Ruff/Black format)
+    "S101",   # Allow 'assert' (usually fine in tests/CLI tools)
+    "S602",   # Allow 'subprocess' usage (needed for CLI tools)
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["wgtool"]
 
 [tool.mypy]
 warn_return_any = true

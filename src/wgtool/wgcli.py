@@ -31,5 +31,5 @@ def _run_command(command: str) -> str:
         return subprocess.check_output(command, shell=True, encoding="utf-8").strip()
     except Exception as e:
         if "127" in str(e) and "wg " in str(e):
-            raise WGToolError('WireGuard command "wg" not found. Is wireguard installed?')
-        raise WGToolError(f'Error executing command "{command}": {e}')
+            raise WGToolError('WireGuard command "wg" not found. Is wireguard installed?') from None
+        raise WGToolError(f'Error executing command "{command}": {e}') from e

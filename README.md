@@ -14,7 +14,7 @@ When a peer is added, the tool generates a file and displays a QR code with the 
 ## Requirements
 
 - Required:
-  - python 3.8 or newer
+  - python 3.10 or newer
   - Updated python pip
   - Dependencies from requirements.txt
 

@@ -41,6 +41,10 @@ if [[ ! -f "${PYTHON}" ]]; then
     command -v ip &> /dev/null
     install_if_not_found iproute2
 
+    printf "Checking iptables... "
+    command -v ip &> /dev/null
+    install_if_not_found iptables
+
     # Creating venv
     echo Creating venv... ${ENVBIN}
     $GLOBAL_PYTHON -m venv .venv

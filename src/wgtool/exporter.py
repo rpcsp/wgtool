@@ -1,11 +1,10 @@
 import os
-from typing import Dict, List
 
 from wgtool.models import WGConfigGroup, WGPeerConfig, WGServerConfig
 
 
 class WGConfigExporter:
-    def to_text(self, config: List[WGConfigGroup]) -> str:
+    def to_text(self, config: list[WGConfigGroup]) -> str:
         key_width = max(len(key) for group in config for key in group.key_values)
         text = ""
         for group in config:
@@ -14,7 +13,7 @@ class WGConfigExporter:
                 text += f"{key: <{key_width}} = {value}\n"
         return text.lstrip("\n")
 
-    def _to_file(self, config: List[WGConfigGroup], file: str, mode: int = 0o600) -> str:
+    def _to_file(self, config: list[WGConfigGroup], file: str, mode: int = 0o600) -> str:
         directory = os.path.dirname(os.path.realpath(file))
         text = self.to_text(config)
         os.makedirs(directory, mode=mode, exist_ok=True)
@@ -31,10 +30,10 @@ class WGServerConfigExporter(WGConfigExporter):
     def to_file(self, file: str) -> str:
         interface = self.get_interface_group()
         peers = self.get_peer_groups()
-        return self._to_file([interface] + peers, file)
+        return self._to_file([interface, *peers], file)
 
     def get_interface_group(self) -> WGConfigGroup:
-        interface: Dict[str, str] = {
+        interface: dict[str, str] = {
             "Address": self.config.address,
             "ListenPort": str(self.config.server.port),
             "MTU": str(self.config.mtu),
@@ -47,8 +46,8 @@ class WGServerConfigExporter(WGConfigExporter):
         }
         return WGConfigGroup("Interface", interface)
 
-    def get_peer_groups(self) -> List[WGConfigGroup]:
-        peers: List[WGConfigGroup] = []
+    def get_peer_groups(self) -> list[WGConfigGroup]:
+        peers: list[WGConfigGroup] = []
         for peer in self.config.peers:
             peer_attributes = {
                 "# Name": peer.name,

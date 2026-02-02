@@ -7,7 +7,6 @@ from ipaddress import (
     ip_address,
     ip_interface,
 )
-from typing import Dict, List, Optional, Union
 
 from wgtool.exceptions import WGToolError
 from wgtool.models import WGConfigGroup, WGPeerConfig, WGServerConfig
@@ -17,12 +16,12 @@ re_key_value = re.compile(r"^([^=]+)\s*=\s*(.+)$")
 
 
 class WGServerConfigImporter:
-    def __init__(self, current_config: Optional[WGServerConfig] = None) -> None:
+    def __init__(self, current_config: WGServerConfig | None = None) -> None:
         self.config = current_config or WGServerConfig()
         self.interface = WGPeerConfig(name="Interface")
-        self.peers: List[WGPeerConfig] = []
+        self.peers: list[WGPeerConfig] = []
 
-    def read_interface(self, attrs: Dict[str, str]) -> None:
+    def read_interface(self, attrs: dict[str, str]) -> None:
         cfg = self.config
         for ip in self._to_ip_interface_list(attrs.pop("Address", "")):
             if isinstance(ip, IPv6Interface):
@@ -37,8 +36,7 @@ class WGServerConfigImporter:
         cfg.server.address = (attrs.pop("# Endpoint", "") or cfg.server.address).split(":")[0]
         cfg.others = {k: v for k, v in attrs.items() if k[0] == k[0].upper()}
 
-    def read_peers(self, peers: List[WGConfigGroup]) -> None:
-
+    def read_peers(self, peers: list[WGConfigGroup]) -> None:
         class PeerNames:
             def __init__(self) -> None:
                 self.i = 0
@@ -75,12 +73,12 @@ class WGServerConfigImporter:
         self.read_peers(groups)
         return self.config
 
-    def _from_file(self, file: str) -> List[WGConfigGroup]:
+    def _from_file(self, file: str) -> list[WGConfigGroup]:
         with open(file) as f:
             content = f.read()
 
-        config: List[WGConfigGroup] = []
-        key_values: Dict[str, str] = {}
+        config: list[WGConfigGroup] = []
+        key_values: dict[str, str] = {}
         for line in content.splitlines():
             line = line.strip()
             if not line:
@@ -98,8 +96,8 @@ class WGServerConfigImporter:
                 key_values[key] = value
         return config
 
-    def _to_ip_interface_list(self, address: str) -> List[Union[IPv4Interface, IPv6Interface]]:
+    def _to_ip_interface_list(self, address: str) -> list[IPv4Interface | IPv6Interface]:
         return [ip_interface(ip.strip()) for ip in address.split(",") if ip.strip()]
 
-    def _to_ip_address_list(self, address: str) -> List[Union[IPv4Address, IPv6Address]]:
+    def _to_ip_address_list(self, address: str) -> list[IPv4Address | IPv6Address]:
         return [ip_address(ip.strip()) for ip in address.split(",") if ip.strip()]

@@ -4,27 +4,29 @@ WireGuard Configuration Tool (wgtool)
 by rpcsp (pcunha at hotmail.com) - 10/2021
 https://github.com/rpcsp/wgtool
 """
+
 import logging
 import os
 import pprint
 import sys
 from ipaddress import IPv4Interface, IPv6Interface, ip_address, ip_interface, ip_network
-from typing import List, Optional, Union, overload
+from typing import overload
 
 from wgtool import host, post, wgcli
 from wgtool.exceptions import WGToolError
 from wgtool.exporter import WGPeerConfigExporter, WGServerConfigExporter
 from wgtool.importer import WGServerConfigImporter
 from wgtool.models import DEFAULT_FILE, WGPeerConfig, WGServerConfig
+
 try:
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal
+    from typing import Literal
 
 
 MIN_PYTHON = (3, 7)
 if sys.version_info < MIN_PYTHON:
-    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
+    sys.exit(f"Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later is required.\n")
 
 
 DEFAULT_DNS_LIST_IPV4 = ["8.8.8.8", "1.1.1.1"]
@@ -80,18 +82,16 @@ class WGTool:
         host.restart_systemctl_service()
 
     @property
-    def peers(self) -> List[WGPeerConfig]:
+    def peers(self) -> list[WGPeerConfig]:
         return self.config.peers
 
-    def get_peer(self, name_or_index: Union[str, int]) -> Optional[WGPeerConfig]:
+    def get_peer(self, name_or_index: str | int) -> WGPeerConfig | None:
         for index, peer in enumerate(self.peers):
             if name_or_index in [peer.name, str(index)]:
                 return peer
         return None
 
-    def add_peer(
-        self, name: str, dns: Optional[List[str]] = None, split_tunnel: bool = False
-    ) -> str:
+    def add_peer(self, name: str, dns: list[str] | None = None, split_tunnel: bool = False) -> str:
         # Remove peer with same name
         peer = self.get_peer(name)
         if peer:
@@ -142,18 +142,18 @@ class WGTool:
     @overload
     def get_next_address(
         self, ipv: Literal["ipv4"], required: bool = False
-    ) -> Optional[IPv4Interface]: ...
+    ) -> IPv4Interface | None: ...
 
     @overload
     def get_next_address(
         self, ipv: Literal["ipv6"], required: bool = False
-    ) -> Optional[IPv6Interface]: ...
+    ) -> IPv6Interface | None: ...
 
     def get_next_address(
         self, ipv: Literal["ipv4", "ipv6"], required: bool = False
-    ) -> Union[IPv4Interface, IPv6Interface, None]:
+    ) -> IPv4Interface | IPv6Interface | None:
         """Return the next available IP address"""
-        server_ip: Union[IPv4Interface, IPv6Interface] = getattr(self.config, ipv)
+        server_ip: IPv4Interface | IPv6Interface = getattr(self.config, ipv)
         if not server_ip and not required:
             return None
         if not server_ip:

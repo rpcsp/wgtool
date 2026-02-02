@@ -29,7 +29,7 @@ def enable_forwarding(ipv4: bool, ipv6: bool) -> None:
                     r"#\s*net.ipv4.ip_forward\s*=\s*1",
                     "net.ipv4.ip_forward=1",
                     new_content,
-                    re.MULTILINE,
+                    flags=re.MULTILINE,
                 )
             else:
                 new_content = new_content.strip("\n") + "\nnet.ipv4.ip_forward=1\n"
@@ -41,7 +41,7 @@ def enable_forwarding(ipv4: bool, ipv6: bool) -> None:
                     r"#\s*net.ipv6.conf.all.forwarding\s*=\s*1",
                     "net.ipv6.conf.all.forwarding=1",
                     new_content,
-                    re.MULTILINE,
+                    flags=re.MULTILINE,
                 )
             else:
                 new_content = new_content.strip("\n") + "\nnet.ipv6.conf.all.forwarding=1\n"
@@ -55,7 +55,7 @@ def enable_forwarding(ipv4: bool, ipv6: bool) -> None:
         with open(file, "w") as f:
             f.write(new_content)
         print("Applying changes to sysctl:")
-        result = subprocess.check_output("sudo sysctl -p", shell=True, encoding="utf-8").strip()
+        result = subprocess.check_output("sudo sysctl -p", shell=True, encoding="utf-8").strip()  # noqa: S607
         print(result)
 
     except FileNotFoundError:

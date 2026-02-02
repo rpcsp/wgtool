@@ -4,6 +4,7 @@ WireGuard Configuration Tool CLI (wgtool)
 by rpcsp (pcunha at hotmail.com) - 10/2021
 https://github.com/rpcsp/wgtool
 """
+
 import argparse
 import logging
 import os
