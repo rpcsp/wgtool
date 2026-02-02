@@ -31,7 +31,8 @@ def parse_args() -> argparse.Namespace:
 
     default_interface = host.default_interface()
     parser = argparse.ArgumentParser(description="WireGuard Configuration Tool")
-    subparser = parser.add_subparsers(dest="action", required=True)
+    subparser = parser.add_subparsers(dest="action", required=False)
+    parser.set_defaults(action="show")
 
     # server
     parser_server = subparser.add_parser("server", help="Setup new server")
@@ -152,7 +153,7 @@ def action_show(wg: WGTool, args: argparse.Namespace) -> None:
     """Show configured clients"""
 
     wg.load_config()
-    if args.name is None:
+    if getattr(args, "name", None) is None:
         print("Configured peers:")
         if not wg.peers:
             print("  none")

@@ -8,6 +8,14 @@ dependencies = [
     "pydantic==2.*",
     "qrcode==7.*",
 ]
+license = { file = "LICENSE" }
+authors = [{ name = "rpcsp" }]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+]
+urls = { "Project page" = "https://github.com/rpcsp/wgtool" }
 
 [project.optional-dependencies]
 dev = ["pytest"]
