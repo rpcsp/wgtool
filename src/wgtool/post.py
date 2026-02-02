@@ -1,3 +1,5 @@
+"""Utility functions for generating iptables post-up and post-down commands for WireGuard server configuration."""
+
 import os
 import subprocess
 from ipaddress import ip_interface

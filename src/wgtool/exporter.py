@@ -1,3 +1,5 @@
+"""Exporter utilities for WireGuard configurations."""
+
 import os
 
 from wgtool.models import WGConfigGroup, WGPeerConfig, WGServerConfig
@@ -106,7 +108,7 @@ class WGPeerConfigExporter(WGConfigExporter):
         return WGConfigGroup("Interface", interface_attributes)
 
     def get_peer_group(self) -> WGConfigGroup:
-        """Generate the peer configuration group. """
+        """Generate the peer configuration group."""
         peer_attributes = {
             "Endpoint": self.peer_config.server.endpoint,
             "AllowedIPs": ", ".join(str(ip) for ip in self.peer_config.allowed_ips),

@@ -1,0 +1,1 @@
+"""wgtool package initialization."""

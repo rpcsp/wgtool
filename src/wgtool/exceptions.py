@@ -1,2 +1,5 @@
+"""Exceptions used by wgtool."""
+
+
 class WGToolError(Exception):
-    pass
+    """Base exception for WGTool errors."""

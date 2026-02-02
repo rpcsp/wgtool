@@ -1,3 +1,5 @@
+"""Host utilities for network interface and forwarding."""
+
 import os
 import re
 import shutil
@@ -6,6 +8,7 @@ from pathlib import Path
 
 
 def default_interface() -> str:
+    """Return the default network interface name."""
     try:
         command = 'ip route list default | grep -Eo " dev ([0-9a-z]+)"'
         return subprocess.check_output(command, shell=True, encoding="utf-8").strip().split()[1]

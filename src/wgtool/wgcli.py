@@ -1,3 +1,5 @@
+"""Utility functions for generating WireGuard keys and related operations."""
+
 import os
 import subprocess
 import tempfile

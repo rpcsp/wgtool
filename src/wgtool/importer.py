@@ -1,3 +1,4 @@
+"""Importer utilities for parsing WireGuard configuration files."""
 import re
 from ipaddress import (
     IPv4Address,

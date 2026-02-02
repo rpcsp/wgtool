@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""
-WireGuard Configuration Tool (wgtool)
+"""WireGuard Configuration Tool (wgtool)
+
 by rpcsp (pcunha at hotmail.com) - 10/2021
 https://github.com/rpcsp/wgtool
 """

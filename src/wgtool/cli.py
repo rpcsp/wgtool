@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WireGuard Configuration Tool CLI (wgtool)
+"""CLI entry point for the WireGuard Configuration Tool.
 
 Provides command-line interface for managing WireGuard configurations.
 by rpcsp (pcunha at hotmail.com) - 10/2021
