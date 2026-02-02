@@ -42,7 +42,8 @@ class WGPeerConfig(BaseModel):
         return ", ".join([str(ip) for ip in [self.ipv4, self.ipv6] if ip])
 
     @field_validator("others")
-    def valid_others(self, value: dict[str, str]) -> dict[str, str]:
+    @classmethod
+    def valid_others(cls, value: dict[str, str]) -> dict[str, str]:
         return {k: v for k, v in value.items() if k[0].upper() == k[0]}
 
     model_config = {"validate_assignment": True}
@@ -63,17 +64,20 @@ class WGServerConfig(BaseModel):
         return ", ".join([str(ip) for ip in [self.ipv4, self.ipv6] if ip])
 
     @field_validator("others")
-    def valid_others(self, value: dict[str, str]) -> dict[str, str]:
+    @classmethod
+    def valid_others(cls, value: dict[str, str]) -> dict[str, str]:
         return {k: v for k, v in value.items() if k[0].upper() == k[0]}
 
     @field_validator("ipv4")
-    def ipv4_max_prefix_len(self, value: IPv4Interface) -> IPv4Interface:
+    @classmethod
+    def ipv4_max_prefix_len(cls, value: IPv4Interface) -> IPv4Interface:
         if value.network.prefixlen > 30:
             raise ValueError("Server interface ipv4 address mask must be <= 30")
         return value
 
     @field_validator("ipv6")
-    def ipv6_max_prefix_len(self, value: IPv6Interface | None) -> IPv6Interface | None:
+    @classmethod
+    def ipv6_max_prefix_len(cls, value: IPv6Interface | None) -> IPv6Interface | None:
         if value is not None and value.network.prefixlen <= 126:
             raise ValueError("Server interface ipv6 address mask must be <= 126")
         return value

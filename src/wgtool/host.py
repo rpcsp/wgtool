@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 
 def default_interface() -> str:
@@ -16,6 +17,18 @@ def enable_forwarding(ipv4: bool, ipv6: bool) -> None:
     if os.name != "posix":
         return
 
+    if Path("/etc/sysctl.conf").exists():
+        _enable_forwarding_sysctl_conf(ipv4, ipv6)
+        return
+
+    if Path("/etc/sysctl.d").exists():
+        _enable_forwarding_sysctl_d(ipv4, ipv6)
+        return
+
+    raise FileNotFoundError("No sysctl configuration file found")
+
+
+def _enable_forwarding_sysctl_conf(ipv4: bool, ipv6: bool) -> None:
     file = "/etc/sysctl.conf"
     try:
         with open(file) as f:
@@ -60,6 +73,14 @@ def enable_forwarding(ipv4: bool, ipv6: bool) -> None:
 
     except FileNotFoundError:
         print(f'Cannot open "{file}"')
+
+
+def _enable_forwarding_sysctl_d(ipv4: bool, ipv6: bool) -> None:
+    with open("/etc/sysctl.d/99-ip-forwarding.conf", "w") as f:
+        if ipv6:
+            f.write("net.ipv6.conf.all.forwarding=1\n")
+        if ipv4:
+            f.write("net.ipv4.ip_forward=1\n")
 
 
 def restart_systemctl_service() -> bool:

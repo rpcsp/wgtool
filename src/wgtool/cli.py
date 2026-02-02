@@ -8,6 +8,7 @@ https://github.com/rpcsp/wgtool
 import argparse
 import logging
 import os
+import shutil
 import sys
 
 from pydantic_core import ValidationError
@@ -17,6 +18,9 @@ from wgtool.exceptions import WGToolError
 from wgtool.models import DEFAULT_FILE, DEFAULT_PORT
 from wgtool.qrcode import print_qrcode
 from wgtool.wgtool import WGTool
+
+# List of required external binaries
+REQUIRED_BINARIES = ("wg", "iptables")
 
 logger = logging.getLogger()
 
@@ -196,6 +200,9 @@ def main() -> None:
         logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(message)s")
     logger.debug(f"CLI arguments: {args}")
 
+    # Validate required binaries
+    _validate_required_binaries()
+
     try:
         wg = WGTool(args.file, ifname=args.ifname)
         if args.action in ["add", "delete"]:
@@ -221,6 +228,13 @@ def main() -> None:
         sys.exit("error: one or more validations failed")
     except (WGToolError, ValueError) as e:
         sys.exit(f"error: {e}")
+
+
+def _validate_required_binaries() -> None:
+    """Exit if any required external binary is missing."""
+    missing = [bin_name for bin_name in REQUIRED_BINARIES if shutil.which(bin_name) is None]
+    if missing:
+        sys.exit(f"error: required binary(s) not found: {', '.join(missing)}")
 
 
 if __name__ == "__main__":
